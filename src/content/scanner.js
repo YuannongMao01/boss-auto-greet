@@ -117,6 +117,91 @@
     return Object.assign({}, final, { added: added + final.added, batches: batches, stopped: stopped });
   }
 
+  // ---- 公司规模 sweep -------------------------------------------------------------------------
+  // One search only ever exposes a capped window of results, so the same query is run once per
+  // 公司规模 value: round one carries no scale at all, then one single code per round. Each round
+  // is its own result window, which is how jobs beyond the cap become reachable. Never several
+  // codes at once, that would just be one wider window with the same cap.
+  const MAX_SHARDS = 12;
+  const MAX_NAV_TRIES = 3;
+
+  async function setStatus(m) { await B.store.set({ statusMsg: m + " · " + new Date().toLocaleTimeString() }); }
+  function shardLabel(shard) { return shard ? "规模 " + shard : "不限规模"; }
+
+  async function sweepStart() {
+    const cfg = await B.store.getConfig();
+    const order = (cfg.scaleOrder || []).filter(Boolean);
+    const shards = [""].concat(order).slice(0, MAX_SHARDS);   // the unfiltered round always goes first
+    await B.store.setSweep({ active: true, shards: shards, idx: 0, added: 0, tries: 0, rounds: [] });
+    await sweepStep();
+  }
+
+  async function sweepStop() {
+    const sw = await B.store.getSweep();
+    sw.active = false;
+    await B.store.setSweep(sw);
+  }
+
+  async function sweepFinish(sw, cfg) {
+    const parts = sw.rounds.map(function (r) {
+      return shardLabel(r.shard) + " " + r.total + "→+" + r.added + (r.skipped ? "（跳过）" : "");
+    });
+    sw.active = false;
+    await B.store.setSweep(sw);
+    await setStatus("规模轮扫完成，共入队 " + sw.added + " 个新岗位｜" + parts.join(" · "));
+    // Leave the page on the plain search rather than on the last round's filter
+    if (B.cities.scaleOf(location.search)) location.href = B.cities.buildSearchUrl(cfg, "");
+  }
+
+  async function sweepStep() {
+    let sw = await B.store.getSweep();
+    if (!sw.active) return;
+    const cfg = await B.store.getConfig();
+    if (sw.idx >= sw.shards.length) return sweepFinish(sw, cfg);
+    const shard = sw.shards[sw.idx];
+    const round = (sw.idx + 1) + "/" + sw.shards.length;
+
+    // Make sure the page really is this round before scanning it, otherwise the numbers would be
+    // attributed to the wrong filter. A round that cannot be reached is skipped rather than retried
+    // forever, which is what keeps a rejected or rewritten parameter from looping.
+    if (!B.cities.onShardAt(cfg, shard, location.pathname, location.search)) {
+      if (sw.tries >= MAX_NAV_TRIES) {
+        sw.rounds.push({ shard: shard, total: 0, added: 0, skipped: true });
+        sw.idx += 1; sw.tries = 0;
+        await B.store.setSweep(sw);
+        if (sw.idx >= sw.shards.length) return sweepFinish(sw, cfg);
+        location.href = B.cities.buildSearchUrl(cfg, sw.shards[sw.idx]);
+        return;
+      }
+      sw.tries += 1;
+      await B.store.setSweep(sw);
+      await setStatus("规模轮扫 " + round + "：打开" + shardLabel(shard) + "的列表…");
+      location.href = B.cities.buildSearchUrl(cfg, shard);
+      return;
+    }
+
+    sw.tries = 0;
+    await B.store.setSweep(sw);
+    const r = await scanAll(async function (p) {
+      await setStatus("规模轮扫 " + round + "（" + shardLabel(shard) + "）：已加载 " + p.cards +
+                      " 个卡片 · 本轮入队 " + p.added);
+    }, async function () { return (await B.store.getSweep()).active; });
+
+    sw = await B.store.getSweep();
+    if (!sw.active) { await setStatus("规模轮扫已停止，共入队 " + (sw.added + r.added) + " 个新岗位"); return; }
+    sw.added += r.added;
+    sw.rounds.push({ shard: shard, total: r.total, added: r.added });
+    sw.idx += 1;
+    await B.store.setSweep(sw);
+
+    if (r.stopped === "captcha") {
+      await setStatus("出现验证码，规模轮扫已停止，共入队 " + sw.added + " 个新岗位");
+      return sweepStop();
+    }
+    if (sw.idx >= sw.shards.length) return sweepFinish(sw, cfg);
+    location.href = B.cities.buildSearchUrl(cfg, sw.shards[sw.idx]);
+  }
+
   function startObserving() {
     if (scanning) return;
     scanning = true;
@@ -137,6 +222,8 @@
 
   B.scanner = {
     scanOnce: scanOnce, scanAll: scanAll, loadMoreCards: loadMoreCards,
+    sweepStart: sweepStart, sweepStep: sweepStep, sweepStop: sweepStop,
+    MAX_SHARDS: MAX_SHARDS, MAX_NAV_TRIES: MAX_NAV_TRIES,
     startObserving: startObserving, stopObserving: stopObserving,
     MAX_SCAN_BATCHES: MAX_SCAN_BATCHES
   };

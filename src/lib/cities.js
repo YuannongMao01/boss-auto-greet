@@ -40,14 +40,29 @@ window.BAG = window.BAG || {};
   // An empty search term is allowed and still produces a real search page: query= with a city is
   // the city's full job list, which Boss honours. Dropping the query parameter altogether is what
   // turns the page into the recommendation feed, so it is always emitted, empty or not.
-  function buildSearchUrl(config) {
+  // scale is one single 公司规模 code, or empty for the unfiltered round. Boss accepts several
+  // comma separated values here, but the sweep deliberately sends one at a time: each value gets
+  // its own result window, which is the whole point of walking them one by one.
+  function buildSearchUrl(config, scale) {
     const kw = config.searchQuery || "";
     const code = (config.cities && config.cities[0]) ? cityCode(config.cities[0]) : null;
     let url = "https://www.zhipin.com/web/geek/jobs?query=" + encodeURIComponent(kw);
     if (code) url += "&city=" + code;
     if (config.jobType === "intern") url += "&experience=" + EXP_STUDENT;
+    if (scale) url += "&scale=" + scale;
     return url;
   }
+
+  function scaleOf(search) { return new URLSearchParams(search).get("scale") || ""; }
+
+  // Is the page showing exactly this round of the sweep? searchMatchesAt ignores unknown filters
+  // on purpose, so the scale has to be compared separately and exactly: the unfiltered round must
+  // not be satisfied by a page that still carries a scale from the previous round.
+  function onShardAt(config, scale, pathname, search) {
+    if (!searchMatchesAt(config, pathname, search)) return false;
+    return scaleOf(search) === (scale || "");
+  }
+  function onShard(config, scale) { return onShardAt(config, scale, location.pathname, location.search); }
 
   function isSearchPageAt(pathname, search) {
     if (pathname === "/web/geek/job") return true;                // legacy singular search path
@@ -75,7 +90,8 @@ window.BAG = window.BAG || {};
     CITY_CODE: CITY_CODE, cityCode: cityCode, buildSearchUrl: buildSearchUrl,
     isSearchPage: isSearchPage, isSearchPageAt: isSearchPageAt,
     searchMatches: searchMatches, searchMatchesAt: searchMatchesAt, currentQuery: currentQuery,
-    hasDestination: hasDestination,
+    hasDestination: hasDestination, scaleOf: scaleOf,
+    onShard: onShard, onShardAt: onShardAt,
     hasStudentExperience: hasStudentExperience, EXP_STUDENT: EXP_STUDENT
   };
 })();

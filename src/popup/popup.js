@@ -2,6 +2,7 @@
 const DEFAULT_CONFIG = {
   jobType: "fulltime", searchQuery: "", titleIncludeAny: [], includeAny: [], excludeKeywords: [], cities: [], greeting: "",
   excludeCompanies: [], blockAgency: false, requireCompanyLogo: false,
+  scaleSweep: false, scaleOrder: ["304","303","305","306"],
   dailyCap: 40, intervalSec: 20
 };
 
@@ -24,6 +25,8 @@ async function load() {
   document.getElementById("excludeCompanies").value = fmtList(c.excludeCompanies);
   document.getElementById("blockAgency").checked = !!c.blockAgency;
   document.getElementById("requireCompanyLogo").checked = !!c.requireCompanyLogo;
+  document.getElementById("scaleSweep").checked = !!c.scaleSweep;
+  document.getElementById("scaleOrder").value = fmtList(c.scaleOrder);
   document.getElementById("dailyCap").value = c.dailyCap;
   document.getElementById("intervalSec").value = c.intervalSec;
   document.getElementById("greeting").value = c.greeting || "";
@@ -59,6 +62,8 @@ async function save() {
     excludeCompanies: parseList(document.getElementById("excludeCompanies").value),
     blockAgency: document.getElementById("blockAgency").checked,
     requireCompanyLogo: document.getElementById("requireCompanyLogo").checked,
+    scaleSweep: document.getElementById("scaleSweep").checked,
+    scaleOrder: parseList(document.getElementById("scaleOrder").value),
     dailyCap: Math.max(1, gi("dailyCap") || 40),
     intervalSec: Math.max(1, gi("intervalSec") || 20),
     greeting: document.getElementById("greeting").value.trim()

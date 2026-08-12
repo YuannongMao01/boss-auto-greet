@@ -622,6 +622,111 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
     ok("the notice has wording for an empty term", pl.indexOf("不限搜索词")>=0);
   })();
 
+  console.log("\n[17] the 公司规模 sweep walks one code per round");
+  await (async function(){
+    const SC = ctx.window.BAG.scanner, C = B.cities;
+
+    // a navigable location: assigning href records the jump and moves the fake page there
+    let navs = [];
+    const loc = { pathname:"/other", search:"" };
+    Object.defineProperty(loc, "href", {
+      get: function(){ return "https://www.zhipin.com" + loc.pathname + loc.search; },
+      set: function(u){
+        navs.push(String(u));
+        const m = String(u).match(/^https?:\/\/[^/]+([^?]*)(\?.*)?$/);
+        loc.pathname = m ? m[1] : "/";
+        loc.search = (m && m[2]) ? m[2] : "";
+      }
+    });
+    ctx.location = loc;
+
+    // a feed that never grows, so every round finishes after its first batch
+    const cards = [1,2,3].map(function(i){
+      const c = { name:"算法实习生 "+i, company:"X公司", salary:"20-30K", location:"上海",
+                  tags:["在校/应届"], jobId:"s"+i, url:"/job_detail/s"+i+".html" };
+      c._raw = [c.name,c.company,c.tags.join(" "),c.location,c.salary].join(" ");
+      c.scrollIntoView = function(){};
+      return c;
+    });
+    ctx.window.BAG.dom = { getAllCards:function(){ return cards; }, parseCard:function(c){ return c; },
+                           detectCaptcha:function(){ return false; } };
+
+    const cfg = { searchQuery:"算法", cities:["上海"], scaleSweep:true, scaleOrder:["304","303"], includeAny:[] };
+    function reset(){ DB = { config:cfg }; navs = []; loc.pathname = "/other"; loc.search = ""; }
+
+    reset();
+    await SC.sweepStart();
+    eq("round one is the unfiltered search", navs[0], C.buildSearchUrl(cfg, ""));
+    eq("the sweep starts with no scale at all, then the configured codes",
+       (DB.sweep||{}).shards, ["", "304", "303"]);
+
+    await SC.sweepStep();          // now on round one, scan it and move to the next
+    eq("round two carries a single code", navs[navs.length-1], C.buildSearchUrl(cfg, "304"));
+    await SC.sweepStep();
+    eq("round three carries the next code alone", navs[navs.length-1], C.buildSearchUrl(cfg, "303"));
+    await SC.sweepStep();          // last round, then finish
+
+    const sw = DB.sweep;
+    eq("every round was recorded in order", sw.rounds.map(function(r){ return r.shard; }), ["", "304", "303"]);
+    eq("the queue kept the jobs found", (DB.queue||[]).length, cards.length);
+    eq("the sweep ends inactive", sw.active, false);
+    ok("the report names the rounds", (DB.statusMsg||"").indexOf("规模轮扫完成")>=0, DB.statusMsg);
+    eq("it returns to the plain search instead of leaving a filter on",
+       navs[navs.length-1], C.buildSearchUrl(cfg, ""));
+
+    // THE EXPLICIT REQUIREMENT: one code per round, never several at once
+    ok("REGRESSION no URL ever combines codes",
+       navs.every(function(u){ return u.indexOf(",")===-1 && (u.match(/scale=/g)||[]).length<=1; }), navs);
+    ok("REGRESSION the codes appear on their own, in order",
+       navs.filter(function(u){ return u.indexOf("scale=")>=0; })
+           .map(function(u){ return u.split("scale=")[1]; }).join("|") === "304|303",
+       navs);
+
+    // a round the site will not show is skipped, not retried forever
+    reset();
+    await SC.sweepStart();
+    for (let i=0;i<12;i++){ loc.pathname = "/other"; loc.search = ""; await SC.sweepStep(); }
+    const sw2 = DB.sweep;
+    eq("an unreachable sweep still terminates", sw2.active, false);
+    ok("every unreachable round is marked skipped rather than scanned",
+       sw2.rounds.length===3 && sw2.rounds.every(function(r){ return r.skipped===true; }), sw2.rounds);
+    eq("retries per round are bounded", SC.MAX_NAV_TRIES, 3);
+
+    // stopping mid sweep
+    reset();
+    await SC.sweepStart();
+    await SC.sweepStop();
+    await SC.sweepStep();
+    eq("a stopped sweep does nothing further", (DB.sweep||{}).active, false);
+
+    // an absurd order cannot spawn an endless number of rounds
+    DB = { config: Object.assign({}, cfg, { scaleOrder: "abcdefghijklmnopqrst".split("") }) };
+    navs = []; loc.pathname = "/other"; loc.search = "";
+    await SC.sweepStart();
+    ok("the number of rounds is capped", DB.sweep.shards.length <= SC.MAX_SHARDS, DB.sweep.shards.length);
+    await SC.sweepStop();
+  })();
+
+  console.log("\n[17b] sweep settings and controls are wired up");
+  (function(){
+    ok("DEFAULT_CONFIG declares scaleSweep", "scaleSweep" in B.store.DEFAULT_CONFIG);
+    ok("DEFAULT_CONFIG declares scaleOrder", "scaleOrder" in B.store.DEFAULT_CONFIG);
+    eq("the default order is the four codes, unfiltered round excluded",
+       B.store.DEFAULT_CONFIG.scaleOrder, ["304","303","305","306"]);
+    eq("the sweep is off by default", B.store.DEFAULT_CONFIG.scaleSweep, false);
+    const ph = fs.readFileSync(D+"src/popup/popup.html","utf8");
+    const pj = fs.readFileSync(D+"src/popup/popup.js","utf8");
+    const pl = fs.readFileSync(D+"src/content/panel.js","utf8");
+    ok("popup has both controls", ph.indexOf('id="scaleSweep"')>=0 && ph.indexOf('id="scaleOrder"')>=0);
+    ok("popup saves both", pj.indexOf("scaleSweep")>=0 && pj.indexOf("scaleOrder")>=0);
+    ok("the scan button starts a sweep when enabled", pl.indexOf("sweepStart()")>=0);
+    ok("the scan button stops a running sweep", pl.indexOf("sweepStop()")>=0);
+    ok("a page load resumes the sweep", pl.indexOf("sweepStep()")>=0);
+    ok("the button is relabelled from stored state, not a local flag",
+       pl.indexOf("bag-scanbtn")>=0 && pl.indexOf('sweep.active ? "停止扫描"')>=0);
+    ok("the mismatch notice is suppressed while a sweep owns the page", pl.indexOf("!sweep.active")>=0);
+  })();
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

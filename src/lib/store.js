@@ -12,6 +12,8 @@ window.BAG = window.BAG || {};
     blockAgency: false,    // reject outsourcing, staffing and headhunter listings
     requireCompanyLogo: false, // reject companies still showing Boss's placeholder logo
     greeting: "",          // custom opener, empty means rely on the account default
+    scaleSweep: false,     // walk the 公司规模 filter one value per round to escape the result cap
+    scaleOrder: ["304", "303", "305", "306"],  // one code per round, the unfiltered round is prepended
     dailyCap: 40,          // max greetings per day
     intervalSec: 20        // gap between greetings, seconds, jittered by 30% at run time
   };
@@ -71,6 +73,14 @@ window.BAG = window.BAG || {};
     if (arr.length > 5000) arr = arr.slice(arr.length - 5000); // cap the set so it cannot grow without bound
     await set({ greetedJobs: arr });
   }
+  // Sweep state. Each round navigates, so progress has to survive a page load, the same way the
+  // greeting run does.
+  async function getSweep() {
+    const o = await get("sweep");
+    return o.sweep || { active: false, shards: [], idx: 0, added: 0, tries: 0, rounds: [] };
+  }
+  async function setSweep(sweep) { await set({ sweep: sweep }); }
+
   async function getTask() { const o = await get("task"); return o.task || { active: false }; }
   async function setTask(task) { await set({ task: task }); }
   async function getQueue() {
@@ -117,6 +127,7 @@ window.BAG = window.BAG || {};
     getQueue: getQueue, setQueue: setQueue,
     getRunState: getRunState, setRunState: setRunState,
     getTask: getTask, setTask: setTask,
+    getSweep: getSweep, setSweep: setSweep,
     getDailyCount: getDailyCount, incDailyCount: incDailyCount,
     addLog: addLog, getLogs: getLogs, today: today
   };

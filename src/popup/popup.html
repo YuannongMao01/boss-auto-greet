@@ -53,6 +53,15 @@
     <label><input id="requireCompanyLogo" type="checkbox" /> 只投有 logo 的公司</label>
     <div class="tip">跳过还在用 Boss 默认图的公司。默认图是靠同一张图被本页多家不同公司共用认出来的，不写死图片地址；本页读不到 logo 时不会拦任何岗位。判定结果可以点面板的「调试」核对。</div>
   </div>
+  <div class="field check">
+    <label><input id="scaleSweep" type="checkbox" /> 按公司规模轮扫</label>
+    <div class="tip">一个搜索只能翻出有限的结果（实测约 300 条），后面的岗位取不到。开启后「扫描全部」会用同一个搜索词跑多轮：第一轮不加规模，之后每轮只带一个规模码，每轮各自滚到底，队列累加。一轮一个码，绝不合并。</div>
+  </div>
+  <div class="field">
+    <label>规模轮扫顺序</label>
+    <input id="scaleOrder" placeholder="304, 303, 305, 306" />
+    <div class="tip">逗号分隔，这里是「轮次顺序」不是筛选条件 —— 每个码单独跑一轮。第一轮的「不加规模」是固定的，不用写进来。</div>
+  </div>
   <div class="row">
     <div class="field half">
       <label>每日上限</label>

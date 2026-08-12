@@ -56,7 +56,13 @@
 
     // Standing notice when the page on screen is not the search the config describes
     const hint = root.querySelector(".bag-hint");
-    if (B.cities.hasDestination(config) && state !== "running" && !B.cities.searchMatches(config)) {
+    const sweep = await B.store.getSweep();
+    const scanBtn = root.querySelector(".bag-scanbtn");
+    if (scanBtn) scanBtn.textContent = sweep.active ? "停止扫描" : "扫描全部";
+
+    // While a sweep owns the page the URL deliberately differs from the plain search, so the
+    // mismatch notice would be noise
+    if (B.cities.hasDestination(config) && state !== "running" && !sweep.active && !B.cities.searchMatches(config)) {
       const sameQuery = B.cities.currentQuery() === (config.searchQuery || "");
       // An empty search term is a valid setting, so it needs wording of its own
       const label = function (q) { return q ? "「" + q + "」" : "不限搜索词"; };
@@ -219,9 +225,21 @@
     const secondary = el("div", "bag-secondary");
     // Sweeps the whole result list, scrolling the feed itself, so jobs further down no longer
     // have to be scrolled to by hand. A second click stops it between batches.
-    const rescan = el("button", null, "扫描全部");
-    let sweeping = false;
+    const rescan = el("button", "bag-scanbtn", "扫描全部");
+    let sweeping = false;   // guards the single page sweep, which never navigates
     rescan.onclick = async function () {
+      const cfg = await B.store.getConfig();
+      const sw = await B.store.getSweep();
+      if (sw.active) { await B.scanner.sweepStop(); showMsg("已停止规模轮扫"); render(); return; }
+      // With the sweep enabled the scan spans several rounds and navigates between them, so the
+      // state lives in storage and each page load resumes it.
+      if (cfg.scaleSweep) {
+        if (!B.cities.hasDestination(cfg)) { showMsg("请先填「搜索词」或「城市」，至少要有一个"); return; }
+        rescan.textContent = "停止扫描";
+        await B.scanner.sweepStart();
+        render();
+        return;
+      }
       if (sweeping) { sweeping = false; rescan.textContent = "停止中…"; return; }
       sweeping = true;
       rescan.textContent = "停止扫描";
@@ -357,6 +375,8 @@
     B.log("log", "panel injected, URL:", location.href);
     if ((await B.store.getRunState()) === "running") {
       setTimeout(function () { B.executor.step(); }, 1500);
+    } else if ((await B.store.getSweep()).active) {
+      setTimeout(function () { B.scanner.sweepStep(); }, 1500);
     }
   }
 
