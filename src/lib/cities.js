@@ -1,4 +1,4 @@
-// 城市名 -> Boss 城市代码；根据配置构造搜索页 URL。
+// City name to Boss city code, plus search page URL construction from the config.
 window.BAG = window.BAG || {};
 (function () {
   const CITY_CODE = {
@@ -19,7 +19,7 @@ window.BAG = window.BAG || {};
     return null;
   }
 
-  // 构造搜索 URL：搜索词 = config.searchQuery，城市取第一个
+  // Build the search URL. The query is config.searchQuery, the city is the first one configured.
   function buildSearchUrl(config) {
     const kw = config.searchQuery || "";
     const code = (config.cities && config.cities[0]) ? cityCode(config.cities[0]) : null;
@@ -30,9 +30,9 @@ window.BAG = window.BAG || {};
 
   function isSearchPage() {
     const p = location.pathname;
-    if (p === "/web/geek/job") return true;                       // 旧单数搜索页
-    if (p === "/web/geek/jobs") return new URLSearchParams(location.search).has("query"); // 复数：带 query 才是搜索
-    return false;                                                 // /web/geek/jobs 无 query = 推荐页
+    if (p === "/web/geek/job") return true;                       // legacy singular search path
+    if (p === "/web/geek/jobs") return new URLSearchParams(location.search).has("query"); // plural path is only a search when a query is present
+    return false;                                                 // /web/geek/jobs without a query is the recommendation feed
   }
 
   window.BAG.cities = { CITY_CODE: CITY_CODE, cityCode: cityCode, buildSearchUrl: buildSearchUrl, isSearchPage: isSearchPage };

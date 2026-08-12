@@ -1,27 +1,27 @@
-// ★★ P0 DOM 侦察产出集中地 ★★
-// 以下选择器基于 Boss直聘 网页版常见结构的最佳猜测。首次使用请登录后在
-// 搜索页控制台执行  window.BAG.dom.debugDumpCards()  验证，并按真实结构修正。
+// Single place where every page selector lives, so a site redesign only needs edits here.
+// To re-verify after a redesign, run window.BAG.dom.debugDumpCards() on a search page, or use
+// the panel's debug button, which renders the same information inside the page.
 window.BAG = window.BAG || {};
 (function () {
   const S = {
-    // 搜索结果列表中的岗位卡片
+    // Job cards in the search result list
     jobCard: "li.job-card-wrapper, .job-card-wrapper, .job-card-box",
     jobName: ".job-name, .job-title .name",
     salary: ".salary, .job-salary",
     company: ".company-name, .boss-name, .company-info .name",
     area: ".job-area, .job-area-wrapper, .company-location",
     tags: ".tag-list li, .job-tags span, .tag-list span",
-    // 卡片上的岗位详情链接（用于提取 jobId）
+    // Detail link on a card, used to derive the job id
     jobLink: "a.job-card-left, a.job-name, a[href*='job_detail'], a[ka]",
-    // “立即沟通”按钮（详情抽屉 / 详情页 / 卡片悬浮）
+    // Contact button, present in the detail pane, the detail page and the card hover state
     chatBtnSelector: ".op-btn-chat, .btn-startchat, .start-chat-btn, .btn-chat",
     chatBtnText: ["立即沟通", "继续沟通", "打招呼"],
-    // 聊天页：消息输入框（textarea 或 contenteditable）
+    // Chat page message box, either a textarea or a contenteditable element
     chatInput: "#boss-chat-editor-input, .chat-input, textarea.input-area, .conversation-editor textarea, div.chat-input[contenteditable='true'], [contenteditable='true'].input-area",
-    // 聊天页：发送按钮
+    // Chat page send button
     sendBtnSelector: ".submit, .btn-send, .send-message, .chat-op .btn-v2",
     sendBtnText: ["发送"],
-    // 异常检测：验证码 / 风控页
+    // Anomaly detection: captcha and rate limit interstitials
     captcha: [".geetest_panel", ".geetest_holder", ".verify-wrap", ".nc-container", "[class*='captcha']"]
   };
 
@@ -104,15 +104,15 @@ window.BAG = window.BAG || {};
     return Array.prototype.slice.call(document.querySelectorAll(S.jobCard));
   }
 
-  // 调试：打印卡片数量与首个卡片结构，用于 P0 侦察修正选择器
+  // Debug helper: dump the card count and the first card's structure to recalibrate selectors
   function debugDumpCards() {
     const cards = getAllCards();
-    console.log("[BAG] 卡片数量:", cards.length);
+    console.log("[BAG] card count:", cards.length);
     if (cards[0]) {
-      console.log("[BAG] 首个卡片 outerHTML:\n", cards[0].outerHTML);
-      console.log("[BAG] 解析结果:", parseCard(cards[0]));
+      console.log("[BAG] first card outerHTML:\n", cards[0].outerHTML);
+      console.log("[BAG] parsed:", parseCard(cards[0]));
     } else {
-      console.log("[BAG] 未匹配到卡片，请检查 jobCard 选择器");
+      console.log("[BAG] no card matched, check the jobCard selector");
     }
     return cards.length;
   }

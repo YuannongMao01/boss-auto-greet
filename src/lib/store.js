@@ -1,19 +1,19 @@
-// chrome.storage.local 封装：配置、已见 jobId、队列、运行状态、每日计数、日志。
+// Wrapper around chrome.storage.local: config, greeted job ids, queue, run state, daily count, logs.
 window.BAG = window.BAG || {};
 (function () {
   const DEFAULT_CONFIG = {
-    searchQuery: "",       // 送去 Boss 搜索的词（一个）
-    mustInclude: [],       // 结果里必须逐字出现的词（可多个，全部满足）
-    excludeKeywords: [],   // 屏蔽词（命中任一则排除）
-    cities: [],            // 城市（location 包含任一）
-    minSalary: 0,          // 薪资下限（单位 K/千），0 = 不限
-    todayOnly: false,      // 仅今日新发布（尽力匹配卡片上的时间标记）
-    greeting: "",          // 自定义打招呼语；留空则用 Boss 账号默认招呼语
-    dailyCap: 40,          // 每日打招呼上限
-    intervalMin: 8,        // 打招呼间隔下限（秒）
-    intervalMax: 30,       // 打招呼间隔上限（秒）
-    workStart: "09:00",    // 工作时段开始
-    workEnd: "20:00"       // 工作时段结束
+    searchQuery: "",       // single term handed to the Boss search box
+    mustInclude: [],       // terms that must appear literally in a result (all of them)
+    excludeKeywords: [],   // blacklist, a single hit rejects the job
+    cities: [],            // accepted cities, matched against the job location
+    minSalary: 0,          // minimum salary in K, 0 means no limit
+    todayOnly: false,      // unused, Boss cards carry no publish time
+    greeting: "",          // custom opener, empty means rely on the account default
+    dailyCap: 40,          // max greetings per day
+    intervalMin: 8,        // minimum gap between greetings, seconds
+    intervalMax: 30,       // maximum gap between greetings, seconds
+    workStart: "09:00",    // start of the allowed time window
+    workEnd: "20:00"       // end of the allowed time window
   };
 
   function get(keys) { return new Promise(function (r) { chrome.storage.local.get(keys, r); }); }
@@ -22,7 +22,7 @@ window.BAG = window.BAG || {};
   async function getConfig() {
     const o = await get("config");
     const c = Object.assign({}, DEFAULT_CONFIG, o.config || {});
-    // 迁移旧配置：keywords[0] -> searchQuery，其余 -> mustInclude
+    // Migrate the legacy shape: keywords[0] -> searchQuery, the rest -> mustInclude
     if (!c.searchQuery && Array.isArray(c.keywords) && c.keywords.length) {
       c.searchQuery = c.keywords[0];
       if (!c.mustInclude || !c.mustInclude.length) c.mustInclude = c.keywords.slice(1);
@@ -37,8 +37,9 @@ window.BAG = window.BAG || {};
   }
   function remove(keys) { return new Promise(function (r) { chrome.storage.local.remove(keys, r); }); }
 
-  // “已招呼”集合：只由真正完成打招呼的动作写入，永久排除，无重置入口。
-  // 旧版本曾把“所有扫过的卡片”都写进 seenJobs（污染），首次读取时从日志重建真实记录并丢弃脏数据。
+  // Greeted set: written only when a greeting actually completed. Permanent, with no reset entry point.
+  // An older build wrote every scanned card into seenJobs, so on first read the real record is
+  // rebuilt from the logs and the polluted key is dropped.
   async function getGreeted() {
     const o = await get(["greetedJobs", "logs", "seenJobs"]);
     if (o.greetedJobs) return new Set(o.greetedJobs);
@@ -54,7 +55,7 @@ window.BAG = window.BAG || {};
     const g = await getGreeted();
     ids.forEach(function (id) { g.add(id); });
     let arr = Array.from(g);
-    if (arr.length > 5000) arr = arr.slice(arr.length - 5000); // 上限，防止无限膨胀
+    if (arr.length > 5000) arr = arr.slice(arr.length - 5000); // cap the set so it cannot grow without bound
     await set({ greetedJobs: arr });
   }
   async function getTask() { const o = await get("task"); return o.task || { active: false }; }

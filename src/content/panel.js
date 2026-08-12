@@ -1,7 +1,7 @@
-// 注入侧边栏面板：一个主控键(开始/暂停) + 折叠的“更多”高级操作 + 队列。
+// Injected sidebar panel: one primary start/pause control, a collapsed advanced menu, and the queue.
 (function () {
   const B = window.BAG;
-  const BAG_VERSION = "v14";  // 每次改动我都会 +1，用于确认是否加载到新代码
+  const BAG_VERSION = "v14";  // Bumped on every change, so the panel title proves which build is loaded
   let root = null;
 
   function el(tag, cls, txt) {
@@ -66,7 +66,8 @@
     });
   }
 
-  // 主控：开始/暂停 切换。开始时若不在搜索页，自动先跳到配置的搜索页再跑。
+  // Primary control, toggling between start and pause. Starting from a non-search page navigates
+  // to the configured search page first.
   async function onMain() {
     const state = await B.store.getRunState();
     if (state === "running") { await B.executor.pause(); showMsg("已暂停（当前动作完成后停下）"); render(); return; }
@@ -75,7 +76,7 @@
     if (!B.cities.isSearchPage()) {
       await B.store.setRunState("running");
       showMsg("正在打开搜索页并开始…");
-      location.href = B.cities.buildSearchUrl(cfg); // 加载后由 init 自动接续 step()
+      location.href = B.cities.buildSearchUrl(cfg); // init() resumes step() once the page has loaded
       return;
     }
     await B.executor.run();
@@ -87,14 +88,14 @@
     root = el("div", "bag-panel");
 
     const head = el("div", "bag-head");
-    head.appendChild(el("span", "bag-title", "Boss 招呼助手 · " + BAG_VERSION));
+    head.appendChild(el("span", "bag-title", "Boss Auto Greet · " + BAG_VERSION));
     const toggle = el("span", "bag-toggle", "—");
     toggle.title = "折叠/展开";
     toggle.onclick = function () { root.classList.toggle("bag-collapsed"); };
     head.appendChild(toggle);
     root.appendChild(head);
 
-    // 主控行
+    // Primary control row
     const primary = el("div", "bag-primary");
     const main = el("button", "bag-main", "开始打招呼");
     main.onclick = onMain;
@@ -109,10 +110,10 @@
     primary.appendChild(more);
     root.appendChild(primary);
 
-    // 状态行
+    // Status row
     root.appendChild(el("div", "bag-stat"));
 
-    // 折叠的“更多”高级操作
+    // Collapsed advanced actions
     const moreBox = el("div", "bag-more");
     moreBox.style.display = "none";
     const rescan = el("button", null, "扫描本页");
@@ -132,7 +133,7 @@
     const debug = el("button", "bag-dbgbtn", "调试");
     debug.onclick = async function () {
       const box0 = root.querySelector(".bag-debugbox");
-      if (box0.style.display !== "none") { closeDebug(); return; } // 再点一次收起
+      if (box0.style.display !== "none") { closeDebug(); return; } // a second click collapses the box
       const cards = B.dom.getAllCards();
       const cfg = await B.store.getConfig();
       const parsed = cards[0] ? B.dom.parseCard(cards[0]) : null;
@@ -154,15 +155,15 @@
       let ddText = "";
       if (dd) ddText = "\n\n[详情页诊断] URL:\n" + dd.url + "\n可点击文字(<=10字):\n" + JSON.stringify(dd.buttons);
       function desc(e) { return e.tagName.toLowerCase() + " ." + (String(e.className || "").replace(/\s+/g, ".").slice(0, 70)) + "  【" + (e.textContent || "").trim().slice(0, 20) + "】"; }
-      // 专项：全文搜“沟通/立即/打招呼/聊”类元素（放最前，不会被截断）
+      // Contact-like elements, listed first so they never fall past the truncation limit
       const chatLike = Array.prototype.slice.call(document.querySelectorAll("a, button, span, div"))
         .filter(function (e) { const t = (e.textContent || "").trim(); return e.offsetParent !== null && t.length <= 8 && /沟通|立即|打招呼|聊/.test(t); })
         .map(desc);
       const chatText = "\n\n[★沟通类按钮]\n" + (chatLike.length ? Array.from(new Set(chatLike)).slice(0, 30).join("\n") : "(主页面未找到，可能在 iframe 里)");
-      // iframe 列表
+      // Frame inventory
       const frames = Array.prototype.slice.call(document.querySelectorAll("iframe")).map(function (f) { return f.src || "(无src)"; });
       const frameText = "\n\n[iframe 数量 " + frames.length + "]\n" + frames.slice(0, 10).join("\n");
-      // 一般可点击元素（排除超链接文本噪声）
+      // General clickable elements, with empty-label noise removed
       const clk = Array.prototype.slice.call(document.querySelectorAll("button, a[class*='btn'], a[class*='chat'], [class*='btn']"))
         .filter(function (e) { return e.offsetParent !== null; }).map(desc)
         .filter(function (t) { return t.indexOf("【】") === -1; });
@@ -199,7 +200,8 @@
     if (["queue-updated", "state-updated", "progress"].indexOf(msg.type) !== -1) render();
   });
 
-  // storage.onChanged 在同一内容脚本上下文也会触发，比 runtime 消息可靠
+  // storage.onChanged fires inside the sending context too, unlike chrome.runtime.sendMessage,
+  // which makes it the reliable channel for same-page status updates
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener(function (changes, area) {
       if (area !== "local") return;
@@ -213,7 +215,7 @@
     if (!cfg.autoScan) return false;
     if (B.cities.isSearchPage()) return false;
     if (!cfg.searchQuery) return false;
-    B.log("log", "自动跳转到搜索页");
+    B.log("log", "auto-navigating to the search page");
     location.href = B.cities.buildSearchUrl(cfg);
     return true;
   }
@@ -223,7 +225,7 @@
     build();
     render();
     B.scanner.startObserving();
-    B.log("log", "面板已注入，URL:", location.href);
+    B.log("log", "panel injected, URL:", location.href);
     if ((await B.store.getRunState()) === "running") {
       setTimeout(function () { B.executor.step(); }, 1500);
     }

@@ -1,16 +1,16 @@
-// Service worker：转发桌面通知 + 每日计数跨日重置检查。
+// Service worker: relays desktop notifications and resets the daily counter across day boundaries.
 chrome.runtime.onMessage.addListener(function (msg) {
   if (msg && msg.type === "notify") {
     chrome.notifications.create({
       type: "basic",
       iconUrl: chrome.runtime.getURL("icons/icon128.png"),
-      title: msg.title || "Boss 招呼助手",
+      title: msg.title || "Boss Auto Greet",
       message: msg.message || ""
     });
   }
 });
 
-// 每小时检查一次，跨日则重置每日计数
+// Check hourly and reset the daily counter once the date has changed
 chrome.runtime.onInstalled.addListener(function () {
   chrome.alarms.create("dailyReset", { periodInMinutes: 60 });
 });

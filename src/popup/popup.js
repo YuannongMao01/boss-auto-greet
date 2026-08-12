@@ -1,4 +1,4 @@
-// 弹窗设置逻辑：读写 chrome.storage.local 中的 config。
+// Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
   searchQuery: "", mustInclude: [], excludeKeywords: [], cities: [], minSalary: 0, greeting: "", autoScan: false,
   dailyCap: 40, intervalMin: 8, intervalMax: 30, workStart: "09:00", workEnd: "20:00"

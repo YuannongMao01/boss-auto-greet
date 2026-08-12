@@ -1,7 +1,8 @@
-// 执行器（跨页面状态机，搜索页内点选版）：
-// 搜索页：选中卡片 -> 右侧详情面板出现“立即沟通” -> 点击 -> 跳聊天页
-// 聊天页：(发自定义招呼语) -> 计数/标记 -> 跳回搜索页 -> 继续
-// 不再跳转独立 job_detail.html（会被 Boss 重定向弹回）。
+// Executor, a state machine that survives page navigation.
+// On a search page: select a card, wait for the contact button in the detail pane, then click it,
+// which navigates to the chat page.
+// On the chat page: optionally send the custom opener, record the result, return to the search page.
+// Run state lives in chrome.storage, so step() simply resumes on every page load.
 (function () {
   const B = window.BAG;
   async function setStatus(m) { await B.store.set({ statusMsg: m + " · " + new Date().toLocaleTimeString() }); }
@@ -126,9 +127,10 @@
     if ((await B.store.getRunState()) === "running") location.href = url;
   }
 
-  // 搜索页：循环处理待办 —— 选中卡片 -> 右侧“立即沟通” -> 点击进聊天
+  // Search page: work through the pending queue, one job per navigation
   async function onSearch() {
-    // 关键：先等岗位卡片渲染出来，否则会误判“卡片不在本页”把队列全标成跳过
+    // Cards render asynchronously. Waiting first avoids concluding that a queued job is absent
+    // from the page and wrongly marking the whole queue as skipped.
     const ready = await waitFor(function () { return B.dom.getAllCards().length > 0 ? true : null; }, 10000);
     if (ready === "captcha") return handleCaptcha(null);
     if (!ready) { await setStatus("本页未加载出岗位卡片，已暂停"); await setPaused(); return; }
@@ -146,7 +148,8 @@
         return;
       }
 
-      // 只处理“本页确实存在卡片”的岗位；找不到的保留待处理，不销毁
+      // Only act on jobs whose card is actually present. A missing card stays pending rather than
+      // being treated as a permanent failure.
       let next = null, card = null;
       for (let i = 0; i < pendings.length; i++) {
         const c = findCard(pendings[i].jobId);
@@ -165,7 +168,7 @@
       if (!(await interruptibleWait(waitMs))) return;
 
       await setStatus("选择岗位：" + next.name);
-      realClick(card.querySelector(B.selectors.jobName) || card); // 选中 -> 右侧详情更新
+      realClick(card.querySelector(B.selectors.jobName) || card); // selecting a card refreshes the detail pane
       await B.humanize.sleep(B.humanize.randInt(1000, 1800));
       if (B.dom.detectCaptcha()) return handleCaptcha(next);
 
@@ -174,7 +177,7 @@
       if (!btn) { await markTask(next, "skipped", "右侧未找到沟通按钮"); await B.store.setTask({ active: false }); continue; }
 
       const btnText = (btn.textContent || "").trim();
-      if (btnText.indexOf("继续沟通") !== -1) { // 已联系过，跳过不重复骚扰
+      if (btnText.indexOf("继续沟通") !== -1) { // already contacted, skip instead of messaging twice
         await markTask(next, "skipped", "已沟通过");
         await B.store.addGreeted([next.jobId]);
         await B.store.setTask({ active: false });
@@ -182,12 +185,12 @@
       }
 
       await setStatus("点击“立即沟通”：" + next.name);
-      realClick(btn); // -> 跳聊天页，onChat 接管
+      realClick(btn); // navigates to the chat page, where onChat takes over
       return;
     }
   }
 
-  // 兜底：万一落到独立详情页且任务在，尝试点沟通（正常流程不走这里）
+  // Fallback for landing on a standalone detail page with a task in flight. Not the normal path.
   async function onDetail() {
     const task = await B.store.getTask();
     if (!task.active) return resumeToSearch();
@@ -201,7 +204,7 @@
     realClick(btn);
   }
 
-  // 聊天页：发自定义招呼语(可选) -> 计数/标记 -> 跳回搜索页
+  // Chat page: send the optional custom opener, record the result, then return to the search page
   async function onChat() {
     const task = await B.store.getTask();
     if (!task.active) return resumeToSearch();
@@ -238,7 +241,7 @@
     if (t === "chat") return onChat();
     if (t === "search") return onSearch();
     if (t === "detail") return onDetail();
-    // other: 交给面板 autoScan
+    // other page types are left to the panel's autoScan
   }
 
   async function run() {

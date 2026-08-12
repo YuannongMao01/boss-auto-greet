@@ -1,4 +1,4 @@
-// 回归测试：node tests/run.js
+// Regression tests: node tests/run.js
 const fs=require("fs"), vm=require("vm");
 const D=__dirname+"/../";
 let pass=0, fail=0;
@@ -26,23 +26,23 @@ const B = ctx.window.BAG;
 console.log("\n[1] filters.parseSalaryLowerK");
 const F=B.filters;
 eq("15-25K", F.parseSalaryLowerK("15-25K"), 15);
-eq("20K13薪", F.parseSalaryLowerK("20K·13薪"), 20);
-eq("8千-1.2万", F.parseSalaryLowerK("8千-1.2万"), 8);
-eq("1-1.5万", F.parseSalaryLowerK("1-1.5万"), 10);
-eq("面议->null", F.parseSalaryLowerK("面议"), null);
-eq("-K·薪->null", F.parseSalaryLowerK("-K·薪"), null);
+eq("K unit with month-count suffix", F.parseSalaryLowerK("20K·13薪"), 20);
+eq("mixed CJK units, first unit wins", F.parseSalaryLowerK("8千-1.2万"), 8);
+eq("CJK ten-thousand unit scales to K", F.parseSalaryLowerK("1-1.5万"), 10);
+eq("negotiable -> null", F.parseSalaryLowerK("面议"), null);
+eq("hidden salary -> null", F.parseSalaryLowerK("-K·薪"), null);
 
 console.log("\n[2] filters.matches with mustInclude / exclude / city / salary");
 const job={ name:"SLAM算法实习生", company:"某某科技", tags:["在校/应届","本科"], location:"上海·浦东新区", salary:"200-300元/天" };
 job._raw=[job.name,job.company,job.tags.join(" "),job.location,job.salary].join(" ");
 eq("mustInclude empty -> ok", F.matches(job,{mustInclude:[]}), {ok:true});
-eq("mustInclude 算法 -> ok", F.matches(job,{mustInclude:["算法"]}), {ok:true});
+eq("mustInclude single hit -> ok", F.matches(job,{mustInclude:["算法"]}), {ok:true});
 const r1=F.matches(job,{mustInclude:["实习","Python"]});
 ok("mustInclude missing word -> rejected w/ reason", r1.ok===false && r1.reason.indexOf("Python")>=0, r1);
 const cardOnly={ name:"SLAM算法", company:"某某科技", tags:["1-3年","本科"], location:"上海" };
 cardOnly._raw=[cardOnly.name,cardOnly.company,cardOnly.tags.join(" "),cardOnly.location].join(" ");
 const r2=F.matches(cardOnly,{mustInclude:["实习"]});
-ok("the exact bug: 实习 not literally on card -> reason names it", r2.ok===false && r2.reason==="缺少必含词「实习」", r2);
+ok("regression: term absent from card text -> reason names that term", r2.ok===false && r2.reason==="缺少必含词「实习」", r2);
 const r3=F.matches(cardOnly,{excludeKeywords:["外包","SLAM"]});
 ok("exclude hit", r3.ok===false && r3.reason.indexOf("SLAM")>=0, r3);
 const r4=F.matches(cardOnly,{cities:["杭州"]});

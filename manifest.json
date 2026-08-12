@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Boss 岗位监控 + 批量招呼助手",
+  "name": "Boss Auto Greet",
   "version": "0.1.0",
-  "description": "监控 Boss直聘 搜索页新岗位，按筛选条件进入队列，人工审批后以拟人节奏批量打招呼。",
+  "description": "Filters jobs on Boss search pages into a queue, then greets them one by one at a human-like pace after you approve.",
   "permissions": [
     "storage",
     "notifications",
@@ -13,7 +13,7 @@
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Boss 招呼助手"
+    "default_title": "Boss Auto Greet"
   },
   "background": {
     "service_worker": "src/background.js"

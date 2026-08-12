@@ -1,9 +1,10 @@
-// 规则引擎：判断一个岗位是否命中用户配置。
-// 语义明确：搜索词交给 Boss（语义匹配），本地只做「必须包含」逐字过滤 + 屏蔽词 + 城市 + 薪资下限。
+// Rule engine deciding whether a job matches the user config.
+// Division of labour: the search term is handled by Boss (semantic matching), while this module
+// only applies literal mustInclude filtering plus blacklist, city and minimum salary checks.
 window.BAG = window.BAG || {};
 (function () {
-  // 解析薪资文本 -> 下限（单位 K）。取“第一个数字”及其单位。
-  // 支持 "15-25K"(15) "20K·13薪"(20) "8千-1.2万"(8) "1-1.5万"(10) "面议"(null)。
+  // Parse a salary label into its lower bound in K, using the first number and its own unit.
+  // Handles ranges, a K unit with a month-count suffix, mixed CJK units, and returns null when negotiable.
   function parseSalaryLowerK(salaryText) {
     if (!salaryText) return null;
     const t = salaryText.replace(/\s/g, "");
@@ -22,7 +23,7 @@ window.BAG = window.BAG || {};
   }
 
   function matches(job, config) {
-    // 用整张卡片文本做匹配（标题/薪资/标签/公司/地点），比只看标题召回更全
+    // Match against the whole card text (title, salary, tags, company, location) for better recall
     const hay = (job._raw || [job.name, job.company, (job.tags || []).join(" ")].join(" ")).toLowerCase();
 
     const must = config.mustInclude || [];

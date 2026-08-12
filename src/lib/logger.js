@@ -1,4 +1,4 @@
-// 统一日志入口。所有内容脚本共享 window.BAG 命名空间。
+// Shared logging entry point. All content scripts share the window.BAG namespace.
 window.BAG = window.BAG || {};
 window.BAG.log = function (level, ...args) {
   const prefix = "%c[BAG]";
