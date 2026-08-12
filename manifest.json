@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Boss 岗位监控 + 批量招呼助手",
+  "version": "0.1.0",
+  "description": "监控 Boss直聘 搜索页新岗位，按筛选条件进入队列，人工审批后以拟人节奏批量打招呼。",
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://www.zhipin.com/*"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Boss 招呼助手"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.zhipin.com/*"
+      ],
+      "js": [
+        "src/lib/logger.js",
+        "src/lib/humanize.js",
+        "src/lib/store.js",
+        "src/lib/selectors.js",
+        "src/lib/cities.js",
+        "src/lib/filters.js",
+        "src/content/scanner.js",
+        "src/content/executor.js",
+        "src/content/panel.js"
+      ],
+      "css": [
+        "src/content/panel.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "128": "icons/icon128.png"
+  }
+}

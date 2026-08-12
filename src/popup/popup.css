@@ -1,0 +1,32 @@
+body {
+  width: 320px; margin: 0; padding: 14px 16px;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 13px; color: #1a2744; background: #f4f4f2;
+}
+h1 { font-size: 15px; margin: 0 0 12px; }
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 12px; color: #4a5568; margin-bottom: 4px; }
+.field input[type="text"], .field input:not([type]), .field input[type="number"], .field textarea, .field input[type="time"] {
+  width: 100%; box-sizing: border-box; padding: 6px 8px;
+  border: 1px solid #cdd5df; border-radius: 6px; font-size: 13px; background: #fff;
+}
+.row { display: flex; gap: 10px; }
+.half { flex: 1; }
+.check label { display: flex; align-items: center; gap: 6px; color: #1a2744; }
+#save {
+  width: 100%; padding: 9px; margin-top: 4px; border: none; border-radius: 8px;
+  background: #1a2744; color: #fff; font-size: 14px; cursor: pointer;
+}
+#save:hover { background: #24385a; }
+#msg { min-height: 16px; font-size: 12px; color: #14532d; margin-top: 6px; }
+.stat { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: #4a5568; }
+.link { background: none; border: none; color: #2b6cb0; cursor: pointer; font-size: 12px; padding: 0; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-size: 12px; color: #4a5568; }
+.logs { max-height: 140px; overflow-y: auto; font-size: 11.5px; color: #4a5568; margin-top: 6px; }
+.logs div { padding: 2px 0; border-bottom: 1px solid #eef1f5; }
+.hint { font-size: 11px; color: #9a3412; margin-top: 12px; line-height: 1.5; }
+
+.field textarea { width:100%; box-sizing:border-box; padding:6px 8px; border:1px solid #cdd5df; border-radius:6px; font-size:13px; font-family:inherit; resize:vertical; }
+
+.tip { font-size: 11px; color: #6b7280; line-height: 1.5; margin-top: 4px; }

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <h1>Boss 招呼助手 · 设置</h1>
+
+  <div class="field">
+    <label>搜索词（只填一个，交给 Boss 搜索框）</label>
+    <input id="searchQuery" placeholder="如：算法实习" />
+    <div class="tip">Boss 的搜索是语义匹配，填“算法实习”就能搜到实习岗。这一项唯一决定搜什么。</div>
+  </div>
+  <div class="field">
+    <label>必须包含（可留空，逗号分隔，对搜索结果做文字过滤）</label>
+    <input id="mustInclude" placeholder="留空表示不额外过滤" />
+    <div class="tip">逐字匹配岗位标题/标签/公司名。注意：Boss 实习岗卡片上通常写“在校/应届”而不是“实习”，别把“实习”填这里，否则结果会被全部过滤掉。搜索词本身也不用重复填。</div>
+  </div>
+  <div class="field">
+    <label>屏蔽关键词（黑名单，命中即排除）</label>
+    <input id="excludeKeywords" placeholder="如：外包, 销售" />
+  </div>
+  <div class="field">
+    <label>城市（location 包含任一，逗号分隔）</label>
+    <input id="cities" placeholder="如：杭州, 上海" />
+  </div>
+  <div class="field check">
+    <label><input id="autoScan" type="checkbox" /> 自动监控：进入 Boss 首页/推荐页自动跳到搜索页（需填搜索词+城市）</label>
+  </div>
+  <div class="row">
+    <div class="field half">
+      <label>薪资下限（K，0=不限）</label>
+      <input id="minSalary" type="number" min="0" />
+    </div>
+    <div class="field half">
+      <label>每日上限</label>
+      <input id="dailyCap" type="number" min="1" />
+    </div>
+  </div>
+  <div class="row">
+    <div class="field half">
+      <label>间隔下限（秒）</label>
+      <input id="intervalMin" type="number" min="1" />
+    </div>
+    <div class="field half">
+      <label>间隔上限（秒）</label>
+      <input id="intervalMax" type="number" min="1" />
+    </div>
+  </div>
+  <div class="row">
+    <div class="field half">
+      <label>工作时段开始</label>
+      <input id="workStart" type="time" />
+    </div>
+    <div class="field half">
+      <label>工作时段结束</label>
+      <input id="workEnd" type="time" />
+    </div>
+  </div>
+  <div class="field">
+    <label>打招呼语（留空则用 Boss 账号默认招呼语）</label>
+    <textarea id="greeting" rows="3" placeholder="如：您好，我有 X 年相关经验，对贵司这个岗位很感兴趣，方便沟通一下吗？"></textarea>
+  </div>
+
+  <button id="save">保存设置</button>
+  <div id="msg"></div>
+
+  <div class="stat">
+    <span id="todayStat"></span>
+    <button id="resetCount" class="link">重置今日计数</button>
+  </div>
+
+  <details>
+    <summary>最近日志</summary>
+    <div id="logs" class="logs"></div>
+  </details>
+
+  <p class="hint">提示：自动化仍违反平台协议，请用低配额、非主力账号试跑，观察无异常再放开。</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
