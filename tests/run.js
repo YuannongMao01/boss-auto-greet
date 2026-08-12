@@ -321,6 +321,91 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   const coPanel=fs.readFileSync(D+"src/content/panel.js","utf8");
   ok("panel row shows the company facts", coPanel.indexOf("job.scaleText")>=0 && coPanel.indexOf("job.stageText")>=0);
 
+  console.log("\n[11] placeholder company logo detection");
+  function lj(company, logo){ return { company: company, logo: logo, name: "job", _raw: company }; }
+  const REAL="https://img.bosszhipin.com/beijin/upload/com/real-a.png";
+  const REAL2="https://img.bosszhipin.com/beijin/upload/com/real-b.png";
+  const PH="https://img.bosszhipin.com/beijin/static/company-default.png";
+
+  // one real company posting many jobs shares its own logo, which must not look like a placeholder
+  const oneCompanyManyJobs=[lj("大厂科技",REAL),lj("大厂科技",REAL),lj("大厂科技",REAL),
+                            lj("大厂科技",REAL),lj("大厂科技",REAL)];
+  eq("a single company reusing its logo is not a placeholder",
+     F.detectPlaceholderLogos(oneCompanyManyJobs)[REAL], undefined);
+
+  const shared=[lj("甲科技",PH),lj("乙信息",PH),lj("丙网络",PH),lj("大厂科技",REAL),lj("另一家",REAL2)];
+  ok("one image shared by three different companies is the placeholder",
+     F.detectPlaceholderLogos(shared)[PH]===true);
+  ok("a logo used by a single company is left alone",
+     F.detectPlaceholderLogos(shared)[REAL]===undefined);
+  eq("two companies sharing is still below the threshold",
+     F.detectPlaceholderLogos([lj("甲",PH),lj("乙",PH)])[PH], undefined);
+  eq("threshold is stated in code, not magic", F.PLACEHOLDER_MIN_COMPANIES, 3);
+
+  ok("obvious placeholder file names are recognised on their own",
+     F.looksLikeDefaultLogo("/static/img/company-default.png")===true &&
+     F.looksLikeDefaultLogo("/img/nologo.png")===true &&
+     F.looksLikeDefaultLogo("/x/placeholder.jpg")===true);
+  ok("a normal logo url is not flagged by name", F.looksLikeDefaultLogo(REAL)===false);
+  ok("an empty src is never flagged by name", F.looksLikeDefaultLogo("")===false);
+
+  const phSet=F.detectPlaceholderLogos(shared);
+  ok("verdict: shared image -> default", F.isDefaultLogo(PH,phSet)===true);
+  ok("verdict: own image -> real", F.isDefaultLogo(REAL,phSet)===false);
+  ok("verdict: unreadable src stays lenient", F.isDefaultLogo("",phSet)===false);
+
+  console.log("\n[11b] the logo rule must never be able to reject a whole page");
+  // If the logo selector ever stops matching, every src is empty. That must not wipe the feed out,
+  // the same lenient rule used for a hidden salary or an unstated company size.
+  const blindPage=[]; for (let i=0;i<20;i++) blindPage.push(lj("公司"+i,""));
+  const blindPh=F.detectPlaceholderLogos(blindPage);
+  eq("an all-empty page yields no placeholders", Object.keys(blindPh).length, 0);
+  let survived=0;
+  blindPage.forEach(function(j){
+    j.logoIsDefault=F.isDefaultLogo(j.logo,blindPh);
+    if (F.matches(j,{requireCompanyLogo:true}).ok) survived++;
+  });
+  eq("REGRESSION selector miss keeps every job instead of filtering all 20", survived, 20);
+
+  console.log("\n[11c] matches honours requireCompanyLogo");
+  function logoJob(isDefault){
+    const c={ name:"数据分析实习生", company:"某某科技", salary:"200-300元/天",
+              location:"上海·浦东新区", tags:["在校/应届"], logoIsDefault:isDefault };
+    c._raw=[c.name,c.company,c.tags.join(" "),c.location,c.salary].join(" ");
+    return c;
+  }
+  const rl=F.matches(logoJob(true),{requireCompanyLogo:true});
+  ok("a default-logo company is rejected with a readable reason",
+     rl.ok===false && rl.reason.indexOf("logo")>=0, rl);
+  ok("a company with its own logo passes", F.matches(logoJob(false),{requireCompanyLogo:true}).ok===true);
+  ok("the rule is off by default", F.matches(logoJob(true),{}).ok===true);
+
+  const rep=F.logoReport(shared);
+  ok("logo report marks the shared image as the default one",
+     rep.indexOf("判定=默认图")>=0 && rep.indexOf(PH)>=0, rep);
+  ok("logo report marks a private logo as real", rep.indexOf("判定=真 logo")>=0, rep);
+  eq("logo report says so when nothing could be read",
+     F.logoReport([lj("a",""),lj("b","")]).indexOf("没读到 logo")>=0, true);
+
+  console.log("\n[11d] logo fields are wired through config, popup, scanner and panel");
+  ok("DEFAULT_CONFIG declares requireCompanyLogo", "requireCompanyLogo" in B.store.DEFAULT_CONFIG);
+  const lgPopupJs=fs.readFileSync(D+"src/popup/popup.js","utf8");
+  const lgPopupHtml=fs.readFileSync(D+"src/popup/popup.html","utf8");
+  ok("popup.js saves requireCompanyLogo", lgPopupJs.indexOf("requireCompanyLogo")>=0);
+  ok("popup.html has a control for it", lgPopupHtml.indexOf('id="requireCompanyLogo"')>=0);
+  const lgScanner=fs.readFileSync(D+"src/content/scanner.js","utf8");
+  ok("scanner parses the page before filtering so logos can be compared",
+     lgScanner.indexOf("detectPlaceholderLogos")>=0 && lgScanner.indexOf("logoIsDefault")>=0);
+  const lgPanel=fs.readFileSync(D+"src/content/panel.js","utf8");
+  ok("panel debug box reports the logo grouping", lgPanel.indexOf("logoReport")>=0);
+  // B.dom is replaced by a stub earlier in this file for the scanner tests, so the export is
+  // checked at the source level, the same way the other wiring assertions here are.
+  const lgSel=fs.readFileSync(D+"src/lib/selectors.js","utf8");
+  ok("dom layer exposes logoSrc", /logoSrc:\s*logoSrc/.test(lgSel));
+  ok("logo selectors are tried one at a time, not as one selector list",
+     /companyLogo:\s*\[/.test(lgSel));
+  ok("parseCard carries the logo url", /logo:\s*logoSrc\(card\)/.test(lgSel));
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

@@ -11,6 +11,10 @@ window.BAG = window.BAG || {};
     company: ".company-name, .boss-name, .company-info .name",
     area: ".job-area, .job-area-wrapper, .company-location",
     tags: ".tag-list li, .job-tags span, .tag-list span",
+    // Company logo, tried in this order. A selector list passed to querySelector matches by
+    // document order rather than by the order written, so these are tried one at a time to keep
+    // the most specific one winning and to avoid picking up the recruiter avatar by accident.
+    companyLogo: [".company-logo img", "img.company-logo", ".company-info img"],
     // Detail link on a card, used to derive the job id
     jobLink: "a.job-card-left, a.job-name, a[href*='job_detail'], a[ka]",
     // Contact button, present in the detail pane, the detail page and the card hover state
@@ -44,6 +48,20 @@ window.BAG = window.BAG || {};
     return n ? n.textContent.trim().replace(/\s+/g, " ") : "";
   }
 
+  // Logo URL of the company on a card, empty when it cannot be read. Lazy loaded images keep the
+  // real URL in data-src or srcset, so both are consulted before giving up.
+  function logoSrc(card) {
+    for (let i = 0; i < S.companyLogo.length; i++) {
+      const img = card.querySelector(S.companyLogo[i]);
+      if (!img) continue;
+      const direct = img.getAttribute("src") || img.getAttribute("data-src") || "";
+      if (direct) return direct.trim();
+      const ss = img.getAttribute("srcset") || "";
+      if (ss) return ss.split(",")[0].trim().split(/\s+/)[0];
+    }
+    return "";
+  }
+
   function parseCard(card) {
     const link = card.querySelector(S.jobLink);
     let url = link ? link.getAttribute("href") : "";
@@ -54,6 +72,7 @@ window.BAG = window.BAG || {};
       salary: text(card, S.salary),
       company: text(card, S.company),
       location: text(card, S.area),
+      logo: logoSrc(card),
       tags: Array.prototype.slice.call(card.querySelectorAll(S.tags)).map(function (t) { return t.textContent.trim(); }),
       url: url || "",
       _raw: (card.textContent || "").replace(/\s+/g, " ")
@@ -119,7 +138,7 @@ window.BAG = window.BAG || {};
 
   window.BAG.selectors = S;
   window.BAG.dom = {
-    extractJobId: extractJobId, parseCard: parseCard,
+    extractJobId: extractJobId, parseCard: parseCard, logoSrc: logoSrc,
     findChatButton: findChatButton, findChatInput: findChatInput, findSendButton: findSendButton,
     detectCaptcha: detectCaptcha, getAllCards: getAllCards, debugDumpCards: debugDumpCards
   };

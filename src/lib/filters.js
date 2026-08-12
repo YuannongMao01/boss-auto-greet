@@ -62,6 +62,66 @@ window.BAG = window.BAG || {};
     return { scaleMin: scale.min, scaleText: scale.text, stageRank: stage.rank, stageText: stage.text };
   }
 
+
+  // A company that never uploaded a logo is served Boss's placeholder image, and that placeholder is
+  // the same file on every such card. It is therefore identified by one image being shared across
+  // several DIFFERENT companies, so no URL is hardcoded and a Boss redesign cannot silently break it.
+  // One real company posting many jobs shares its logo too, which is why companies are counted, not cards.
+  const PLACEHOLDER_MIN_COMPANIES = 3;
+
+  function groupLogos(jobs) {
+    const groups = {};
+    (jobs || []).forEach(function (j) {
+      const src = String((j && j.logo) || "").trim();
+      if (!src) return;   // an unreadable logo is never counted, see isDefaultLogo
+      const g = groups[src] || (groups[src] = { count: 0, companies: [] });
+      g.count++;
+      const co = String((j && j.company) || "").trim();
+      if (co && g.companies.indexOf(co) === -1) g.companies.push(co);
+    });
+    return groups;
+  }
+
+  function detectPlaceholderLogos(jobs) {
+    const groups = groupLogos(jobs);
+    const out = {};
+    Object.keys(groups).forEach(function (src) {
+      if (groups[src].companies.length >= PLACEHOLDER_MIN_COMPANIES) out[src] = true;
+    });
+    return out;
+  }
+
+  // Obvious placeholder file names, a cheap second opinion when a page holds too few cards for
+  // the sharing rule to fire.
+  function looksLikeDefaultLogo(src) {
+    const s = String(src || "").toLowerCase();
+    if (!s) return false;
+    return /default|nologo|no-logo|no_logo|blank|placeholder|empty/.test(s);
+  }
+
+  // Verdict for a single card. An empty src means the logo could not be read at all, which stays
+  // lenient on purpose: a selector that stops matching must not silently reject every job on the page.
+  function isDefaultLogo(src, placeholders) {
+    const s = String(src || "").trim();
+    if (!s) return false;
+    if (looksLikeDefaultLogo(s)) return true;
+    return !!(placeholders && placeholders[s]);
+  }
+
+  // Human readable grouping for the panel debug box, so the judgement can be checked by eye.
+  function logoReport(jobs) {
+    const groups = groupLogos(jobs);
+    const keys = Object.keys(groups).sort(function (a, b) {
+      return groups[b].companies.length - groups[a].companies.length;
+    });
+    if (!keys.length) return "(卡片上没读到 logo，选择器可能需要校准)";
+    return keys.slice(0, 8).map(function (k) {
+      const g = groups[k];
+      const verdict = g.companies.length >= PLACEHOLDER_MIN_COMPANIES ? "判定=默认图" : "判定=真 logo";
+      return g.companies.length + " 家公司 · " + g.count + " 张卡片 · " + verdict + " · " + k;
+    }).join("\n");
+  }
+
   function matches(job, config) {
     // Match against the whole card text (title, salary, tags, company, location) for better recall
     const hay = (job._raw || [job.name, job.company, (job.tags || []).join(" ")].join(" ")).toLowerCase();
@@ -89,6 +149,11 @@ window.BAG = window.BAG || {};
       if (w) return { ok: false, reason: "外包中介「" + w + "」" };
     }
 
+    // logoIsDefault is decided by the scanner, which can compare every card on the page at once.
+    if (config.requireCompanyLogo && job.logoIsDefault) {
+      return { ok: false, reason: "公司没有 logo（Boss 默认图）" };
+    }
+
     if (config.minCompanyScale && meta.scaleMin !== null && meta.scaleMin < config.minCompanyScale) {
       return { ok: false, reason: "公司规模偏小（" + meta.scaleText + "）" };
     }
@@ -114,6 +179,9 @@ window.BAG = window.BAG || {};
   window.BAG.filters = {
     parseSalaryLowerK: parseSalaryLowerK, matches: matches,
     parseCompanyScale: parseCompanyScale, parseFinancingStage: parseFinancingStage,
-    companyMeta: companyMeta, AGENCY_WORDS: AGENCY_WORDS
+    companyMeta: companyMeta, AGENCY_WORDS: AGENCY_WORDS,
+    detectPlaceholderLogos: detectPlaceholderLogos, isDefaultLogo: isDefaultLogo,
+    looksLikeDefaultLogo: looksLikeDefaultLogo, logoReport: logoReport,
+    PLACEHOLDER_MIN_COMPANIES: PLACEHOLDER_MIN_COMPANIES
   };
 })();

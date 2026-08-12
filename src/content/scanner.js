@@ -18,8 +18,14 @@
     let inQueue = 0, greetedSkip = 0, filtered = 0, revived = 0;
     const reasonTally = {};   // tally rejection reasons so the panel can explain an empty result
 
-    for (let i = 0; i < cards.length; i++) {
-      const job = B.dom.parseCard(cards[i]);
+    // Every card is parsed up front, because the placeholder logo can only be recognised by
+    // comparing the whole page: it is the one image several different companies share.
+    const parsed = cards.map(function (c) { return B.dom.parseCard(c); });
+    const placeholders = B.filters.detectPlaceholderLogos(parsed);
+
+    for (let i = 0; i < parsed.length; i++) {
+      const job = parsed[i];
+      job.logoIsDefault = B.filters.isDefaultLogo(job.logo, placeholders);
       if (!job.jobId) continue;
       if (greeted.has(job.jobId)) { greetedSkip++; continue; }
       const known = byId[job.jobId];

@@ -271,6 +271,41 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   window.BAG.scanner.scanOnce = origScan;
   feed.remove();
 
+
+  // I. Reading the company logo off real Boss-shaped markup, the part logic tests cannot cover.
+  var lg = document.createElement("div");
+  lg.innerHTML = '<div class="job-card-right"><div class="company-logo">' +
+    '<img src="https://img.bosszhipin.com/x/real.png"></div>' +
+    '<h3 class="company-name"><a>大厂科技</a></h3></div>';
+  document.body.appendChild(lg);
+  ok("logo read from a plain src", window.BAG.dom.logoSrc(lg) === "https://img.bosszhipin.com/x/real.png",
+     window.BAG.dom.logoSrc(lg));
+
+  var lg2 = document.createElement("div");
+  lg2.innerHTML = '<div class="company-logo"><img data-src="https://img.bosszhipin.com/x/lazy.png"></div>';
+  document.body.appendChild(lg2);
+  ok("lazy loaded logo read from data-src", window.BAG.dom.logoSrc(lg2) === "https://img.bosszhipin.com/x/lazy.png",
+     window.BAG.dom.logoSrc(lg2));
+
+  var lg3 = document.createElement("div");
+  lg3.innerHTML = '<div class="company-logo"><img srcset="https://img.bosszhipin.com/x/a.png 1x, b.png 2x"></div>';
+  document.body.appendChild(lg3);
+  ok("logo read from the first srcset entry", window.BAG.dom.logoSrc(lg3) === "https://img.bosszhipin.com/x/a.png",
+     window.BAG.dom.logoSrc(lg3));
+
+  var lg4 = document.createElement("div");
+  lg4.innerHTML = '<h3 class="company-name"><a>没有图的公司</a></h3>';
+  document.body.appendChild(lg4);
+  ok("no img at all yields an empty src, which stays lenient", window.BAG.dom.logoSrc(lg4) === "",
+     window.BAG.dom.logoSrc(lg4));
+
+  var lg5 = document.createElement("div");
+  lg5.innerHTML = '<div class="job-card-right"><img class="hr-avatar" src="https://img.bosszhipin.com/x/hr.png">' +
+    '<div class="company-logo"><img src="https://img.bosszhipin.com/x/company.png"></div></div>';
+  document.body.appendChild(lg5);
+  ok("the recruiter avatar is not mistaken for the company logo",
+     window.BAG.dom.logoSrc(lg5) === "https://img.bosszhipin.com/x/company.png", window.BAG.dom.logoSrc(lg5));
+
   L.push(F ? ("###### " + F + " FAILED, " + P + " passed ######")
            : ("###### ALL " + P + " DOM TESTS PASSED ######"));
   document.getElementById("out").textContent = L.join("\n");

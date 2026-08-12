@@ -10,6 +10,7 @@ window.BAG = window.BAG || {};
     minCompanyScale: 0,    // minimum company headcount, 0 means no limit
     minFinancingRank: 0,   // minimum financing stage rank 1..7, 0 means no limit
     blockAgency: false,    // reject outsourcing, staffing and headhunter listings
+    requireCompanyLogo: false, // reject companies still showing Boss's placeholder logo
     minSalary: 0,          // minimum salary in K, 0 means no limit
     greeting: "",          // custom opener, empty means rely on the account default
     dailyCap: 40,          // max greetings per day

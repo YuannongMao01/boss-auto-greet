@@ -227,6 +227,8 @@
       if (box0.style.display !== "none") { closeDebug(); return; } // a second click collapses the box
       const cards = B.dom.getAllCards();
       const cfg = await B.store.getConfig();
+      const allParsed = cards.map(function (c) { return B.dom.parseCard(c); });
+      const logoText = "\n\n[公司 logo 分组]\n" + B.filters.logoReport(allParsed);
       const parsed = cards[0] ? B.dom.parseCard(cards[0]) : null;
       if (parsed) delete parsed._raw;
       let html = cards[0] ? cards[0].outerHTML : "(未匹配到卡片)";
@@ -260,7 +262,7 @@
         .filter(function (t) { return t.indexOf("【】") === -1; });
       const clkText = chatText + frameText + "\n\n[按钮类元素]\n" + Array.from(new Set(clk)).slice(0, 60).join("\n");
       ta.value = "调试格式版本: " + BAG_VERSION + "（若面板标题不是这个版本，说明扩展或页面没刷新！）\n当前页面: " + location.href + "\n卡片数量: " + cards.length + "\n\n当前配置:\n" + JSON.stringify(cfg, null, 2) +
-        "\n\n首个卡片解析结果:\n" + JSON.stringify(parsed, null, 2) + "\n\n首个卡片 HTML:\n" + html + ddText + clkText;
+        "\n\n首个卡片解析结果:\n" + JSON.stringify(parsed, null, 2) + "\n\n首个卡片 HTML:\n" + html + logoText + ddText + clkText;
       ta.onclick = function () { ta.select(); };
       box.appendChild(ta);
       const copyBtn = el("button", "bag-dbg-copy", "复制全部");
