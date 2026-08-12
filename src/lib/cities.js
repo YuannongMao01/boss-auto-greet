@@ -30,7 +30,16 @@ window.BAG = window.BAG || {};
     return null;
   }
 
+  // A run needs somewhere to go: either a search term or a city. With neither, the URL degenerates
+  // into Boss's recommendation feed, which ignores the configured city.
+  function hasDestination(config) {
+    return !!((config && config.searchQuery) || (config && config.cities && config.cities[0]));
+  }
+
   // Build the search URL. The query is config.searchQuery, the city is the first one configured.
+  // An empty search term is allowed and still produces a real search page: query= with a city is
+  // the city's full job list, which Boss honours. Dropping the query parameter altogether is what
+  // turns the page into the recommendation feed, so it is always emitted, empty or not.
   function buildSearchUrl(config) {
     const kw = config.searchQuery || "";
     const code = (config.cities && config.cities[0]) ? cityCode(config.cities[0]) : null;
@@ -66,6 +75,7 @@ window.BAG = window.BAG || {};
     CITY_CODE: CITY_CODE, cityCode: cityCode, buildSearchUrl: buildSearchUrl,
     isSearchPage: isSearchPage, isSearchPageAt: isSearchPageAt,
     searchMatches: searchMatches, searchMatchesAt: searchMatchesAt, currentQuery: currentQuery,
+    hasDestination: hasDestination,
     hasStudentExperience: hasStudentExperience, EXP_STUDENT: EXP_STUDENT
   };
 })();

@@ -580,6 +580,48 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   ok("the panel explains a missing 在校生 filter instead of just reporting a mismatch",
      fs.readFileSync(D+"src/content/panel.js","utf8").indexOf("hasStudentExperience")>=0);
 
+  console.log("\n[16] an empty search term is a valid setting");
+  (function(){
+    const C=B.cities, U=C.buildSearchUrl, SM=C.searchMatchesAt, HD=C.hasDestination;
+
+    const cityOnly={ searchQuery:"", cities:["上海"] };
+    eq("an empty term still emits the query parameter, plus the city",
+       U(cityOnly), "https://www.zhipin.com/web/geek/jobs?query=&city=101020100");
+    ok("REGRESSION query= with a city is a real search page, not the recommendation feed",
+       C.isSearchPageAt("/web/geek/jobs", "?query=&city=101020100")===true);
+    ok("dropping the query parameter is what makes it the recommendation feed",
+       C.isSearchPageAt("/web/geek/jobs", "?city=101020100")===false);
+
+    ok("a city alone is a destination", HD(cityOnly)===true);
+    ok("a search term alone is a destination", HD({ searchQuery:"算法", cities:[] })===true);
+    ok("neither is not a destination", HD({ searchQuery:"", cities:[] })===false);
+    ok("an undefined config is not a destination", HD(undefined)===false);
+
+    ok("an empty term matches the city's full list",
+       SM(cityOnly, "/web/geek/jobs", "?query=&city=101020100")===true);
+    ok("an empty term does not match a page that is searching for something",
+       SM(cityOnly, "/web/geek/jobs", "?query="+encodeURIComponent("算法")+"&city=101020100")===false);
+    ok("a configured term does not match an empty page query",
+       SM({ searchQuery:"算法", cities:["上海"] }, "/web/geek/jobs", "?query=&city=101020100")===false);
+    ok("the wrong city still fails with an empty term",
+       SM(cityOnly, "/web/geek/jobs", "?query=&city=101280600")===false);
+    ok("an internship browse still pins 在校生",
+       SM({ jobType:"intern", searchQuery:"", cities:["上海"] }, "/web/geek/jobs", "?query=&city=101020100")===false &&
+       SM({ jobType:"intern", searchQuery:"", cities:["上海"] }, "/web/geek/jobs", "?query=&city=101020100&experience=108")===true);
+    ok("an internship browse URL carries both",
+       U({ jobType:"intern", searchQuery:"", cities:["上海"] }).indexOf("query=&city=101020100&experience=108")>=0,
+       U({ jobType:"intern", searchQuery:"", cities:["上海"] }));
+
+    const pl=fs.readFileSync(D+"src/content/panel.js","utf8");
+    const ex=fs.readFileSync(D+"src/content/executor.js","utf8");
+    ok("the panel gates on a destination, not on a search term", pl.indexOf("hasDestination(cfg)")>=0);
+    ok("the standing notice gates on a destination too", pl.indexOf("hasDestination(config)")>=0);
+    ok("the panel no longer demands a search term",
+       pl.indexOf("在「搜索词」里填岗位关键词")===-1);
+    ok("resuming a run gates on a destination", ex.indexOf("hasDestination(cfg)")>=0);
+    ok("the notice has wording for an empty term", pl.indexOf("不限搜索词")>=0);
+  })();
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

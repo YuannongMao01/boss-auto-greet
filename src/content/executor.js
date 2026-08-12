@@ -156,7 +156,7 @@
 
   async function resumeToSearch() {
     const cfg = await B.store.getConfig();
-    if (cfg.searchQuery) location.href = B.cities.buildSearchUrl(cfg);
+    if (B.cities.hasDestination(cfg)) location.href = B.cities.buildSearchUrl(cfg);
   }
 
   async function backToSearch(task) {

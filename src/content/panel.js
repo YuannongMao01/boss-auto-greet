@@ -56,15 +56,18 @@
 
     // Standing notice when the page on screen is not the search the config describes
     const hint = root.querySelector(".bag-hint");
-    if (config.searchQuery && state !== "running" && !B.cities.searchMatches(config)) {
-      const sameQuery = B.cities.currentQuery() === config.searchQuery;
+    if (B.cities.hasDestination(config) && state !== "running" && !B.cities.searchMatches(config)) {
+      const sameQuery = B.cities.currentQuery() === (config.searchQuery || "");
+      // An empty search term is a valid setting, so it needs wording of its own
+      const label = function (q) { return q ? "「" + q + "」" : "不限搜索词"; };
       if (!B.cities.isSearchPage()) {
-        hint.textContent = "当前不在搜索页 → 点「开始打招呼」会跳到「" + config.searchQuery + "」的搜索页";
+        hint.textContent = "当前不在搜索页 → 点「开始打招呼」会打开 " + label(config.searchQuery) + " 的岗位列表";
       } else if (config.jobType === "intern" && sameQuery && !B.cities.hasStudentExperience(location.search)) {
         // Same words, so say plainly what is actually missing instead of just "not a match"
         hint.textContent = "搜索词一致，但本页没开「工作经验 → 在校生」这个筛选，搜出来的会混进全职岗 → 点「开始打招呼」会带上它重新搜";
       } else {
-        hint.textContent = "本页搜的是「" + B.cities.currentQuery() + "」，设置里是「" + config.searchQuery + "」 → 点「开始打招呼」会先跳转";
+        hint.textContent = "本页搜的是" + label(B.cities.currentQuery()) + "，设置里是" +
+                           label(config.searchQuery) + " → 点「开始打招呼」会先跳转";
       }
       hint.style.display = "block";
     } else {
@@ -120,7 +123,9 @@
     const state = await B.store.getRunState();
     if (state === "running") { await B.executor.pause(); showMsg("已暂停（当前动作完成后停下）"); render(); return; }
     const cfg = await B.store.getConfig();
-    if (!cfg.searchQuery) { showMsg("请先点扩展图标，在「搜索词」里填岗位关键词"); return; }
+    // Search term or city, either is a destination. Both empty would land on the recommendation
+    // feed, which ignores the city and cannot be filtered meaningfully.
+    if (!B.cities.hasDestination(cfg)) { showMsg("请先点扩展图标，填「搜索词」或「城市」，至少要有一个"); return; }
     // Not merely "is this a search page" but "is this the search the config asks for", so editing
     // the search term and pressing start navigates instead of silently reusing the old results.
     if (!B.cities.searchMatches(cfg)) {
