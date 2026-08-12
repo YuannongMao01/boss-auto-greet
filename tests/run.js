@@ -32,17 +32,34 @@ eq("CJK ten-thousand unit scales to K", F.parseSalaryLowerK("1-1.5万"), 10);
 eq("negotiable -> null", F.parseSalaryLowerK("面议"), null);
 eq("hidden salary -> null", F.parseSalaryLowerK("-K·薪"), null);
 
-console.log("\n[2] filters.matches with mustInclude / exclude / city / salary");
+console.log("\n[2] filters.matches with topic keywords / exclude / city / salary");
 const job={ name:"SLAM算法实习生", company:"某某科技", tags:["在校/应届","本科"], location:"上海·浦东新区", salary:"200-300元/天" };
 job._raw=[job.name,job.company,job.tags.join(" "),job.location,job.salary].join(" ");
-eq("mustInclude empty -> ok", F.matches(job,{mustInclude:[]}), {ok:true});
-eq("mustInclude single hit -> ok", F.matches(job,{mustInclude:["算法"]}), {ok:true});
-const r1=F.matches(job,{mustInclude:["实习","Python"]});
-ok("mustInclude missing word -> rejected w/ reason", r1.ok===false && r1.reason.indexOf("Python")>=0, r1);
+eq("no topic keywords -> ok", F.matches(job,{includeAny:[]}), {ok:true});
+eq("single topic keyword hit -> ok", F.matches(job,{includeAny:["算法"]}), {ok:true});
+eq("ANY-of: one hit is enough even when the others are absent",
+   F.matches(job,{includeAny:["数据","AI","Agent","算法"]}), {ok:true});
+const r1=F.matches(job,{includeAny:["Python","Golang"]});
+ok("no topic keyword hits -> rejected, reason lists them all",
+   r1.ok===false && r1.reason.indexOf("Python")>=0 && r1.reason.indexOf("Golang")>=0, r1);
 const cardOnly={ name:"SLAM算法", company:"某某科技", tags:["1-3年","本科"], location:"上海" };
 cardOnly._raw=[cardOnly.name,cardOnly.company,cardOnly.tags.join(" "),cardOnly.location].join(" ");
-const r2=F.matches(cardOnly,{mustInclude:["实习"]});
-ok("regression: term absent from card text -> reason names that term", r2.ok===false && r2.reason==="缺少必含词「实习」", r2);
+const r2=F.matches(cardOnly,{includeAny:["实习"]});
+ok("term absent from card text -> rejected with a reason naming it",
+   r2.ok===false && r2.reason==="未命中主题词「实习」", r2);
+
+// The exact configuration that filtered out all 300 cards: three unrelated topics.
+// Under the old all-of rule nothing could ever match; any-of is what the user meant.
+const userTopics = { searchQuery:"实习", includeAny:["数据","AI","Agent"], cities:["上海"] };
+function mk(name){ const c={name:name,company:"某科技",salary:"200-300元/天",location:"上海·浦东新区",tags:["在校/应届"]};
+  c._raw=[c.name,c.company,c.tags.join(" "),c.location,c.salary].join(" "); return c; }
+ok("REGRESSION 数据/AI/Agent: a data job is kept", F.matches(mk("数据分析实习生"), userTopics).ok===true);
+ok("REGRESSION 数据/AI/Agent: an AI job is kept", F.matches(mk("AI算法实习生"), userTopics).ok===true);
+ok("REGRESSION 数据/AI/Agent: an Agent job is kept", F.matches(mk("大模型Agent开发实习"), userTopics).ok===true);
+const off = F.matches(mk("前端开发实习生"), userTopics);
+ok("REGRESSION 数据/AI/Agent: an unrelated job is still rejected", off.ok===false, off);
+ok("REGRESSION 数据/AI/Agent: rejection reason names every topic",
+   off.reason==="未命中主题词「数据/AI/Agent」", off.reason);
 const r3=F.matches(cardOnly,{excludeKeywords:["外包","SLAM"]});
 ok("exclude hit", r3.ok===false && r3.reason.indexOf("SLAM")>=0, r3);
 const r4=F.matches(cardOnly,{cities:["杭州"]});
@@ -51,7 +68,8 @@ eq("city match", F.matches(cardOnly,{cities:["上海"]}), {ok:true});
 const r5=F.matches({name:"x",salary:"10-15K",_raw:"x"},{minSalary:20});
 ok("salary below floor", r5.ok===false && r5.reason==="薪资低于下限", r5);
 eq("salary unknown passes", F.matches({name:"x",salary:"面议",_raw:"x"},{minSalary:20}), {ok:true});
-ok("no matchMode/keywords left in filters", !/matchMode|config\.keywords/.test(fs.readFileSync(D+"src/lib/filters.js","utf8")));
+ok("filters has no all-of leftovers",
+   !/matchMode|config\.keywords|mustInclude/.test(fs.readFileSync(D+"src/lib/filters.js","utf8")));
 
 console.log("\n[3] cities.buildSearchUrl uses searchQuery");
 const u=B.cities.buildSearchUrl({searchQuery:"算法实习", cities:["上海"]});
@@ -93,26 +111,34 @@ ok("no city configured -> city param ignored",
 ok("empty search term never matches a real query",
    SM({ searchQuery: "", cities: [] }, "/web/geek/jobs", "?query=" + encodeURIComponent("算法")) === false);
 
-console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + mustInclude)");
+console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> searchQuery + includeAny)");
 (async function(){
   DB={ config:{ keywords:["算法","实习"], matchMode:"and", cities:["上海"], greeting:"hi" } };
   let c=await B.store.getConfig();
   eq("keywords[0] -> searchQuery", c.searchQuery, "算法");
-  eq("keywords[1:] -> mustInclude", c.mustInclude, ["实习"]);
+  eq("keywords[1:] -> includeAny", c.includeAny, ["实习"]);
   eq("other fields kept", c.cities, ["上海"]);
 
   DB={ config:{ keywords:["算法实习"] } };
   c=await B.store.getConfig();
-  eq("single keyword -> searchQuery only", [c.searchQuery,c.mustInclude], ["算法实习",[]]);
+  eq("single keyword -> searchQuery only", [c.searchQuery,c.includeAny], ["算法实习",[]]);
 
-  DB={ config:{ searchQuery:"算法实习", mustInclude:[] } };
+  DB={ config:{ searchQuery:"算法实习", includeAny:[] } };
   c=await B.store.getConfig();
-  eq("new config untouched", [c.searchQuery,c.mustInclude], ["算法实习",[]]);
+  eq("new config untouched", [c.searchQuery,c.includeAny], ["算法实习",[]]);
+
+  // the previous all-of field is carried over as the any-of list
+  DB={ config:{ searchQuery:"实习", mustInclude:["数据","AI","Agent"] } };
+  c=await B.store.getConfig();
+  eq("mustInclude migrates to includeAny", c.includeAny, ["数据","AI","Agent"]);
+  DB={ config:{ searchQuery:"实习", mustInclude:["数据"], includeAny:["AI"] } };
+  c=await B.store.getConfig();
+  eq("an existing includeAny wins over the legacy field", c.includeAny, ["AI"]);
   ok("defaults present", c.dailyCap>0 && typeof c.intervalMin==="number", {cap:c.dailyCap});
 
   DB={};
   c=await B.store.getConfig();
-  eq("fresh install defaults", [c.searchQuery,c.mustInclude,c.excludeKeywords], ["",[],[]]);
+  eq("fresh install defaults", [c.searchQuery,c.includeAny,c.excludeKeywords], ["",[],[]]);
 
   console.log("\n[6] greetedJobs migration from dirty seenJobs (regression)");
   DB={ seenJobs:["A","B","C"], logs:[{status:"greeted",jobId:"A",name:"a"},{status:"skipped",jobId:"B"}] };
@@ -135,13 +161,13 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
   ctx.window.BAG.dom = { getAllCards:function(){ return cards; }, parseCard:function(c){ return c; } };
   vm.runInContext(fs.readFileSync(D+"src/content/scanner.js","utf8"), ctx, {filename:"scanner.js"});
 
-  DB={ config:{ searchQuery:"算法", mustInclude:["实习"], cities:["上海"] } };
+  DB={ config:{ searchQuery:"算法", includeAny:["实习"], cities:["上海"] } };
   let r=await ctx.window.BAG.scanner.scanOnce();
   eq("all filtered", [r.total,r.added,r.filtered], [4,0,4]);
-  eq("topReason names the culprit", r.topReason, "缺少必含词「实习」");
+  eq("topReason names the culprit", r.topReason, "未命中主题词「实习」");
   eq("topCount", r.topCount, 4);
 
-  DB={ config:{ searchQuery:"算法", mustInclude:[], excludeKeywords:["销售"], cities:["上海"] } };
+  DB={ config:{ searchQuery:"算法", includeAny:[], excludeKeywords:["销售"], cities:["上海"] } };
   r=await ctx.window.BAG.scanner.scanOnce();
   eq("3 added, 1 excluded", [r.added,r.filtered], [3,1]);
   eq("reason = exclude", r.topReason, "命中屏蔽词「销售」");
@@ -159,7 +185,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
   const EX = ctx.window.BAG.executor;
 
   // three pending + one greeted; the executor writes off what the feed no longer shows
-  DB = { config:{ searchQuery:"算法", mustInclude:[], cities:["上海"] },
+  DB = { config:{ searchQuery:"算法", includeAny:[], cities:["上海"] },
          queue:[{jobId:"j1",name:"a",status:"pending",approved:true},
                 {jobId:"j2",name:"b",status:"pending",approved:true},
                 {jobId:"j3",name:"c",status:"pending",approved:false},
@@ -186,7 +212,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
 
   // a revived job must still satisfy the filter
   DB.queue.forEach(function(x){ if(x.jobId==="j2"){ x.status="unavailable"; } });
-  DB.config = { searchQuery:"算法", mustInclude:["不可能出现的词"], cities:["上海"] };
+  DB.config = { searchQuery:"算法", includeAny:["不可能出现的词"], cities:["上海"] };
   await ctx.window.BAG.scanner.scanOnce();
   eq("a job the filter now rejects is not revived",
      DB.queue.filter(function(x){return x.jobId==="j2";})[0].status, "unavailable");

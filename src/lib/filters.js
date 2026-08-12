@@ -1,6 +1,8 @@
 // Rule engine deciding whether a job matches the user config.
 // Division of labour: the search term is handled by Boss (semantic matching), while this module
-// only applies literal mustInclude filtering plus blacklist, city and minimum salary checks.
+// narrows the results by topic keywords, blacklist, city and minimum salary.
+// Topic keywords are ANY-of, not all-of: a comma separated list of subjects is what a user means
+// by "data or AI work", so requiring every entry to appear would reject essentially every job.
 window.BAG = window.BAG || {};
 (function () {
   // Parse a salary label into its lower bound in K, using the first number and its own unit.
@@ -26,11 +28,10 @@ window.BAG = window.BAG || {};
     // Match against the whole card text (title, salary, tags, company, location) for better recall
     const hay = (job._raw || [job.name, job.company, (job.tags || []).join(" ")].join(" ")).toLowerCase();
 
-    const must = config.mustInclude || [];
-    for (let i = 0; i < must.length; i++) {
-      if (hay.indexOf(String(must[i]).toLowerCase()) === -1) {
-        return { ok: false, reason: "缺少必含词「" + must[i] + "」" };
-      }
+    const topics = config.includeAny || [];
+    if (topics.length) {
+      const hit = topics.some(function (kw) { return hay.indexOf(String(kw).toLowerCase()) !== -1; });
+      if (!hit) return { ok: false, reason: "未命中主题词「" + topics.join("/") + "」" };
     }
 
     const bad = (config.excludeKeywords || []).find(function (kw) { return hay.indexOf(String(kw).toLowerCase()) !== -1; });

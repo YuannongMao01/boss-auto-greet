@@ -3,7 +3,7 @@ window.BAG = window.BAG || {};
 (function () {
   const DEFAULT_CONFIG = {
     searchQuery: "",       // single term handed to the Boss search box
-    mustInclude: [],       // terms that must appear literally in a result (all of them)
+    includeAny: [],        // topic keywords, a result is kept when it contains ANY of them
     excludeKeywords: [],   // blacklist, a single hit rejects the job
     cities: [],            // accepted cities, matched against the job location
     minSalary: 0,          // minimum salary in K, 0 means no limit
@@ -19,10 +19,14 @@ window.BAG = window.BAG || {};
   async function getConfig() {
     const o = await get("config");
     const c = Object.assign({}, DEFAULT_CONFIG, o.config || {});
-    // Migrate the legacy shape: keywords[0] -> searchQuery, the rest -> mustInclude
+    // Migrate the legacy shape: keywords[0] -> searchQuery, the rest -> topic keywords
     if (!c.searchQuery && Array.isArray(c.keywords) && c.keywords.length) {
       c.searchQuery = c.keywords[0];
-      if (!c.mustInclude || !c.mustInclude.length) c.mustInclude = c.keywords.slice(1);
+      if (!c.includeAny.length) c.includeAny = c.keywords.slice(1);
+    }
+    // mustInclude was an all-of filter; the same words are a far better any-of list
+    if (!c.includeAny.length && Array.isArray(c.mustInclude) && c.mustInclude.length) {
+      c.includeAny = c.mustInclude;
     }
     return c;
   }

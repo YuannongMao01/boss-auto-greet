@@ -13,9 +13,9 @@
     <div class="tip">Boss 的搜索是语义匹配，填“算法实习”就能搜到实习岗。这一项唯一决定搜什么。</div>
   </div>
   <div class="field">
-    <label>必须包含（可留空，逗号分隔，对搜索结果做文字过滤）</label>
-    <input id="mustInclude" placeholder="留空表示不额外过滤" />
-    <div class="tip">逐字匹配岗位标题/标签/公司名。注意：Boss 实习岗卡片上通常写“在校/应届”而不是“实习”，别把“实习”填这里，否则结果会被全部过滤掉。搜索词本身也不用重复填。</div>
+    <label>主题词（可留空，逗号分隔，命中任一即保留）</label>
+    <input id="includeAny" placeholder="如：数据, AI, Agent" />
+    <div class="tip">在搜索结果里逐字匹配卡片文字（标题/标签/公司/地点/薪资），几个词是“或”的关系，沾一个就留下。<b>词填得越多，结果越多</b>，所以觉得漏得厉害就多加几个同义词，例如再加“算法, 机器学习, 大模型, 推荐, NLP”。留空表示不额外过滤。</div>
   </div>
   <div class="field">
     <label>屏蔽关键词（黑名单，命中即排除）</label>

@@ -1,6 +1,6 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
-  searchQuery: "", mustInclude: [], excludeKeywords: [], cities: [], minSalary: 0, greeting: "", autoScan: false,
+  searchQuery: "", includeAny: [], excludeKeywords: [], cities: [], minSalary: 0, greeting: "", autoScan: false,
   dailyCap: 40, intervalMin: 8, intervalMax: 30
 };
 
@@ -15,7 +15,7 @@ async function load() {
   const o = await get("config");
   const c = Object.assign({}, DEFAULT_CONFIG, o.config || {});
   document.getElementById("searchQuery").value = c.searchQuery || "";
-  document.getElementById("mustInclude").value = fmtList(c.mustInclude);
+  document.getElementById("includeAny").value = fmtList(c.includeAny);
   document.getElementById("excludeKeywords").value = fmtList(c.excludeKeywords);
   document.getElementById("cities").value = fmtList(c.cities);
   document.getElementById("minSalary").value = c.minSalary;
@@ -51,7 +51,7 @@ async function save() {
   if (isNaN(iMax) || iMax < iMin) iMax = iMin;
   const config = {
     searchQuery: document.getElementById("searchQuery").value.trim(),
-    mustInclude: parseList(document.getElementById("mustInclude").value),
+    includeAny: parseList(document.getElementById("includeAny").value),
     excludeKeywords: parseList(document.getElementById("excludeKeywords").value),
     cities: parseList(document.getElementById("cities").value),
     minSalary: Math.max(0, gi("minSalary") || 0),
