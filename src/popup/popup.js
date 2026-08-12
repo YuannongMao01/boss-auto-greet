@@ -1,6 +1,6 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
-  searchQuery: "", includeAny: [], excludeKeywords: [], cities: [], greeting: "", autoScan: false,
+  searchQuery: "", titleIncludeAny: [], includeAny: [], excludeKeywords: [], cities: [], greeting: "", autoScan: false,
   excludeCompanies: [], blockAgency: false, requireCompanyLogo: false,
   dailyCap: 40, intervalSec: 20
 };
@@ -16,6 +16,7 @@ async function load() {
   const o = await get("config");
   const c = Object.assign({}, DEFAULT_CONFIG, o.config || {});
   document.getElementById("searchQuery").value = c.searchQuery || "";
+  document.getElementById("titleIncludeAny").value = fmtList(c.titleIncludeAny);
   document.getElementById("includeAny").value = fmtList(c.includeAny);
   document.getElementById("excludeKeywords").value = fmtList(c.excludeKeywords);
   document.getElementById("cities").value = fmtList(c.cities);
@@ -50,6 +51,7 @@ async function save() {
   const gi = function (id) { return parseInt(document.getElementById(id).value, 10); };
   const config = {
     searchQuery: document.getElementById("searchQuery").value.trim(),
+    titleIncludeAny: parseList(document.getElementById("titleIncludeAny").value),
     includeAny: parseList(document.getElementById("includeAny").value),
     excludeKeywords: parseList(document.getElementById("excludeKeywords").value),
     cities: parseList(document.getElementById("cities").value),

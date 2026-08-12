@@ -1,6 +1,6 @@
 // Rule engine deciding whether a job matches the user config.
 // Division of labour: the search term is handled by Boss (semantic matching), while this module
-// narrows the results by topic keywords, blacklist, company signals and city.
+// narrows the results by the job title, topic keywords, blacklist, company signals and city.
 // Topic keywords are ANY-of, not all-of: a comma separated list of subjects is what a user means
 // by "data or AI work", so requiring every entry to appear would reject essentially every job.
 window.BAG = window.BAG || {};
@@ -71,6 +71,16 @@ window.BAG = window.BAG || {};
   function matches(job, config) {
     // Match against the whole card text (title, salary, tags, company, location) for better recall
     const hay = (job._raw || [job.name, job.company, (job.tags || []).join(" ")].join(" ")).toLowerCase();
+
+    // Hard gate on the job title alone. Boss's own search is loose: a search for 实习生 returns
+    // plenty of non-internship posts, so the title is checked separately from the card text.
+    // Any-of, like the topic list, because 实习 / 见习 / intern are alternative spellings of one intent.
+    const titleWords = config.titleIncludeAny || [];
+    if (titleWords.length) {
+      const title = String(job.name || "").toLowerCase();
+      const hitTitle = titleWords.some(function (kw) { return title.indexOf(String(kw).toLowerCase()) !== -1; });
+      if (!hitTitle) return { ok: false, reason: "标题里没有「" + titleWords.join("/") + "」" };
+    }
 
     const topics = config.includeAny || [];
     if (topics.length) {

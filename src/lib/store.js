@@ -3,6 +3,7 @@ window.BAG = window.BAG || {};
 (function () {
   const DEFAULT_CONFIG = {
     searchQuery: "",       // single term handed to the Boss search box
+    titleIncludeAny: [],   // hard gate on the job title, kept when the title contains ANY of them
     includeAny: [],        // topic keywords, a result is kept when it contains ANY of them
     excludeKeywords: [],   // blacklist, a single hit rejects the job
     cities: [],            // accepted cities, matched against the job location

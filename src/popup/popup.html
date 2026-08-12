@@ -13,6 +13,11 @@
     <div class="tip">只填一个，直接交给 Boss 搜索框。Boss 的搜索是语义匹配，填“算法实习”就能搜到实习岗。这一项唯一决定搜什么。</div>
   </div>
   <div class="field">
+    <label>标题必须包含</label>
+    <input id="titleIncludeAny" placeholder="如：实习" />
+    <div class="tip">可留空，逗号分隔，命中任一即保留。只比对岗位标题，不看标签和公司名。Boss 的搜索比较松，搜“实习生”也会返回一堆非实习岗，这一项是补一道硬门槛。注意填“实习”而不是“实习生”，Boss 上有“数据分析实习”这种写法。</div>
+  </div>
+  <div class="field">
     <label>主题词</label>
     <input id="includeAny" placeholder="如：数据, AI, Agent" />
     <div class="tip">可留空，逗号分隔，命中任一即保留。在搜索结果里逐字匹配卡片文字（标题/标签/公司/地点/薪资），几个词是“或”的关系，沾一个就留下。词填得越多，结果越多，所以觉得漏得厉害就多加几个同义词，例如再加“算法, 机器学习, 大模型, 推荐, NLP”。</div>

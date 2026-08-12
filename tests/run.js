@@ -420,6 +420,48 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
     ok("titles stay short enough to read as headings", longTitles.length===0, longTitles);
   })();
 
+  console.log("\n[13] hard title gate, independent of the card text");
+  (function(){
+    function tj(title, cardExtra){
+      const c={ name:title, company:"某科技", salary:"200-300元/天",
+                location:"上海·浦东新区", tags:["在校/应届"] };
+      c._raw=[c.name,c.company,c.tags.join(" "),c.location,c.salary,cardExtra||""].join(" ");
+      return c;
+    }
+    const gate={ titleIncludeAny:["实习"] };
+    ok("a title carrying the word passes", F.matches(tj("数据分析实习"), gate).ok===true);
+    ok("another spelling in the title passes", F.matches(tj("实习-算法工程师"), gate).ok===true);
+    const miss=F.matches(tj("数据分析师"), gate);
+    ok("a title without the word is rejected and the reason names it",
+       miss.ok===false && miss.reason.indexOf("实习")>=0, miss);
+
+    // THE REPORTED PROBLEM: Boss returns non-internship posts for 实习生. Those cards still mention
+    // 实习 elsewhere (tags, company blurb), so the gate has to read the title and nothing else.
+    const decoy=tj("数据分析师", "实习生招聘 实习");
+    ok("REGRESSION card text mentioning the word does not rescue a bad title",
+       F.matches(decoy, gate).ok===false, F.matches(decoy, gate));
+    ok("the same card would have passed a whole-card keyword check",
+       F.matches(decoy, {includeAny:["实习"]}).ok===true);
+
+    ok("several spellings are any-of",
+       F.matches(tj("见习数据分析"), {titleIncludeAny:["实习","见习"]}).ok===true);
+    ok("an ascii keyword is matched case insensitively",
+       F.matches(tj("Data Intern"), {titleIncludeAny:["intern"]}).ok===true);
+    ok("an empty list filters nothing", F.matches(tj("数据分析师"), {titleIncludeAny:[]}).ok===true);
+    ok("the gate is off by default", F.matches(tj("数据分析师"), {}).ok===true);
+
+    // it composes with the topic list rather than replacing it
+    const both={ titleIncludeAny:["实习"], includeAny:["数据","AI"] };
+    ok("title and topics both have to hold", F.matches(tj("数据分析实习"), both).ok===true);
+    ok("right topic but wrong title is rejected", F.matches(tj("数据分析师"), both).ok===false);
+    ok("right title but wrong topic is rejected", F.matches(tj("前端开发实习"), both).ok===false);
+  })();
+  ok("DEFAULT_CONFIG declares titleIncludeAny", "titleIncludeAny" in B.store.DEFAULT_CONFIG);
+  ok("popup.js saves titleIncludeAny",
+     fs.readFileSync(D+"src/popup/popup.js","utf8").indexOf("titleIncludeAny")>=0);
+  ok("popup.html has a control for it",
+     fs.readFileSync(D+"src/popup/popup.html","utf8").indexOf('id="titleIncludeAny"')>=0);
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();
