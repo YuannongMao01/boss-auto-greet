@@ -10,7 +10,15 @@
 <link rel="stylesheet" href="../src/content/panel.css">
 <script>
 // Minimal chrome.* stub, enough for store.js and panel.js
-var __DB = { config: { searchQuery: "算法实习", mustInclude: [], cities: ["上海"], autoScan: false } };
+var __DB = {
+  config: { searchQuery: "算法实习", mustInclude: [], cities: ["上海"], autoScan: false },
+  queue: [
+    { jobId: "j1", name: "算法实习生 A", status: "pending", approved: true },
+    { jobId: "j2", name: "算法实习生 B", status: "pending", approved: true },
+    { jobId: "j3", name: "算法实习生 C", status: "pending", approved: false },
+    { jobId: "j4", name: "已招呼过的岗位", status: "greeted", approved: true }
+  ]
+};
 window.chrome = {
   storage: {
     local: {
@@ -149,6 +157,43 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   ok("hint also hides while collapsed", getComputedStyle(hint).display === "none", getComputedStyle(hint).display);
   tog.click();
   await sleep(60);
+
+  // G. Bulk select / clear over the queue list
+  var lh = root.querySelector(".bag-listhead");
+  var selAll = root.querySelector(".bag-selall");
+  var selNone = root.querySelector(".bag-selnone");
+  var counts = root.querySelector(".bag-counts");
+  function approvedOf(id) { return __DB.queue.filter(function (x) { return x.jobId === id; })[0].approved; }
+  function boxes() { return [].slice.call(root.querySelectorAll(".bag-list input[type=checkbox]")); }
+
+  ok("list header exists and is shown", !!lh && getComputedStyle(lh).display === "flex",
+     lh ? getComputedStyle(lh).display : null);
+  ok("counts show 3 pending with 2 approved", counts.textContent.indexOf("待处理 3") >= 0 && counts.textContent.indexOf("已勾选 2") >= 0,
+     counts.textContent);
+  ok("four rows rendered", boxes().length === 4, boxes().length);
+  ok("greeted row checkbox is disabled", boxes().filter(function (b) { return b.disabled; }).length === 1);
+
+  selAll.click(); await sleep(120);
+  ok("select all approves every pending job",
+     approvedOf("j1") && approvedOf("j2") && approvedOf("j3"),
+     [approvedOf("j1"), approvedOf("j2"), approvedOf("j3")]);
+  ok("select all leaves the greeted job untouched", approvedOf("j4") === true);
+  ok("counts updated to 3 approved", counts.textContent.indexOf("已勾选 3") >= 0, counts.textContent);
+  ok("select-all disables itself once everything is approved", selAll.disabled === true);
+
+  selNone.click(); await sleep(120);
+  ok("clear all unapproves every pending job",
+     !approvedOf("j1") && !approvedOf("j2") && !approvedOf("j3"),
+     [approvedOf("j1"), approvedOf("j2"), approvedOf("j3")]);
+  ok("clear all leaves the greeted job untouched", approvedOf("j4") === true);
+  ok("clear-all disables itself once nothing is approved", selNone.disabled === true);
+  ok("checkbox DOM reflects the cleared state",
+     boxes().filter(function (b) { return !b.disabled && b.checked; }).length === 0);
+
+  selAll.click(); await sleep(120);
+  tog.click(); await sleep(60);
+  ok("list header hides while collapsed", getComputedStyle(lh).display === "none", getComputedStyle(lh).display);
+  tog.click(); await sleep(60);
 
   L.push(F ? ("###### " + F + " FAILED, " + P + " passed ######")
            : ("###### ALL " + P + " DOM TESTS PASSED ######"));

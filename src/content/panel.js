@@ -27,6 +27,22 @@
     if (b) b.textContent = "调试";
   }
 
+  // Bulk approval. Only pending rows are touched, since greeted or skipped ones can no longer act.
+  async function setAllApproved(approved) {
+    const q = await B.store.getQueue();
+    let changed = 0, actionable = 0;
+    q.forEach(function (item) {
+      if (item.status !== "pending") return;
+      actionable++;
+      if (item.approved !== approved) { item.approved = approved; changed++; }
+    });
+    if (changed) await B.store.setQueue(q);
+    if (!actionable) showMsg("队列里没有待处理的岗位");
+    else if (!changed) showMsg(approved ? "待处理岗位已经全部勾选" : "待处理岗位已经全部取消勾选");
+    else showMsg((approved ? "已勾选 " : "已取消勾选 ") + changed + " 个待处理岗位");
+    render();
+  }
+
   async function render() {
     if (!root) return;
     const queue = await B.store.getQueue();
@@ -52,6 +68,20 @@
     const main = root.querySelector(".bag-main");
     if (state === "running") { main.textContent = "暂停"; main.classList.add("bag-running"); }
     else { main.textContent = "开始打招呼"; main.classList.remove("bag-running"); }
+
+    // List header: counts plus the two bulk actions, hidden when nothing is actionable
+    const listHead = root.querySelector(".bag-listhead");
+    const pendingItems = queue.filter(function (q) { return q.status === "pending"; });
+    const approvedCount = pendingItems.filter(function (q) { return q.approved; }).length;
+    if (pendingItems.length) {
+      listHead.style.display = "flex";
+      root.querySelector(".bag-counts").textContent =
+        "待处理 " + pendingItems.length + " 个 · 已勾选 " + approvedCount;
+      root.querySelector(".bag-selall").disabled = approvedCount === pendingItems.length;
+      root.querySelector(".bag-selnone").disabled = approvedCount === 0;
+    } else {
+      listHead.style.display = "none";
+    }
 
     const list = root.querySelector(".bag-list");
     list.innerHTML = "";
@@ -260,6 +290,19 @@
     const dbgbox = el("div", "bag-debugbox");
     dbgbox.style.display = "none";
     root.appendChild(dbgbox);
+
+    const listHead = el("div", "bag-listhead");
+    listHead.style.display = "none";
+    listHead.appendChild(el("span", "bag-counts"));
+    const selOps = el("div", "bag-selops");
+    const selAll = el("button", "bag-selall", "全选");
+    selAll.onclick = function () { setAllApproved(true); };
+    const selNone = el("button", "bag-selnone", "全不选");
+    selNone.onclick = function () { setAllApproved(false); };
+    selOps.appendChild(selAll);
+    selOps.appendChild(selNone);
+    listHead.appendChild(selOps);
+    root.appendChild(listHead);
 
     root.appendChild(el("div", "bag-list"));
     document.body.appendChild(root);

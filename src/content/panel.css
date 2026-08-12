@@ -21,6 +21,7 @@
 .bag-panel.bag-collapsed .bag-actions,
 .bag-panel.bag-collapsed .bag-stat,
 .bag-panel.bag-collapsed .bag-hint,
+.bag-panel.bag-collapsed .bag-listhead,
 .bag-panel.bag-collapsed .bag-msg,
 .bag-panel.bag-collapsed .bag-debugbox,
 .bag-panel.bag-collapsed .bag-list { display: none !important; }
@@ -77,6 +78,19 @@
   padding: 7px 14px; font-size: 12px; color: #7a4a00; background: #fff7e6;
   border-bottom: 1px solid #f0e2c0; line-height: 1.5;
 }
+
+.bag-listhead {
+  align-items: center; justify-content: space-between;
+  padding: 7px 14px; font-size: 11.5px; color: #6b7280;
+  background: #fafbfc; border-bottom: 1px solid #eef1f5;
+}
+.bag-selops { display: flex; gap: 12px; }
+.bag-selops button {
+  border: none; background: none; padding: 0; cursor: pointer;
+  font-size: 11.5px; color: #2b6cb0; font-family: inherit;
+}
+.bag-selops button:hover { text-decoration: underline; }
+.bag-selops button:disabled { color: #c3cad4; cursor: default; text-decoration: none; }
 
 .bag-list { overflow-y: auto; padding: 4px 10px 8px; }
 .bag-row {
