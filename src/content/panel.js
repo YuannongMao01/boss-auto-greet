@@ -338,18 +338,7 @@
     });
   }
 
-  async function maybeAutoNavigate() {
-    const cfg = await B.store.getConfig();
-    if (!cfg.autoScan) return false;
-    if (B.cities.isSearchPage()) return false;
-    if (!cfg.searchQuery) return false;
-    B.log("log", "auto-navigating to the search page");
-    location.href = B.cities.buildSearchUrl(cfg);
-    return true;
-  }
-
   async function init() {
-    if (await maybeAutoNavigate()) return;
     build();
     await restoreLayout();
     render();

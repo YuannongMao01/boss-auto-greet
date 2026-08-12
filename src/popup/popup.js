@@ -1,6 +1,6 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
-  searchQuery: "", titleIncludeAny: [], includeAny: [], excludeKeywords: [], cities: [], greeting: "", autoScan: false,
+  searchQuery: "", titleIncludeAny: [], includeAny: [], excludeKeywords: [], cities: [], greeting: "",
   excludeCompanies: [], blockAgency: false, requireCompanyLogo: false,
   dailyCap: 40, intervalSec: 20
 };
@@ -26,7 +26,6 @@ async function load() {
   document.getElementById("dailyCap").value = c.dailyCap;
   document.getElementById("intervalSec").value = c.intervalSec;
   document.getElementById("greeting").value = c.greeting || "";
-  document.getElementById("autoScan").checked = !!c.autoScan;
 
   const today = new Date().toISOString().slice(0, 10);
   const dcObj = await get("dailyCount");
@@ -60,8 +59,7 @@ async function save() {
     requireCompanyLogo: document.getElementById("requireCompanyLogo").checked,
     dailyCap: Math.max(1, gi("dailyCap") || 40),
     intervalSec: Math.max(1, gi("intervalSec") || 20),
-    greeting: document.getElementById("greeting").value.trim(),
-    autoScan: document.getElementById("autoScan").checked
+    greeting: document.getElementById("greeting").value.trim()
   };
   await set({ config: config });
   const msg = document.getElementById("msg");

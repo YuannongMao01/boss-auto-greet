@@ -377,14 +377,16 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   ok("executor waits on the single configured gap", /jitter\(cfg\.intervalSec \* 1000/.test(exSrc));
 
   console.log("\n[11b] removed settings must not creep back");
-  ["minSalary","minCompanyScale","minFinancingRank","intervalMin","intervalMax","workStart","workEnd","todayOnly"]
+  ["minSalary","minCompanyScale","minFinancingRank","intervalMin","intervalMax","workStart","workEnd","todayOnly","autoScan"]
     .forEach(function(k){ ok("DEFAULT_CONFIG free of "+k, !(k in B.store.DEFAULT_CONFIG)); });
   ["src/lib/filters.js","src/popup/popup.js","src/popup/popup.html","src/content/executor.js","src/content/panel.js","src/content/scanner.js"]
     .forEach(function(f){
       const t=fs.readFileSync(D+f,"utf8");
-      ["minSalary","minCompanyScale","minFinancingRank","intervalMin","intervalMax","parseSalaryLowerK","companyMeta"]
+      ["minSalary","minCompanyScale","minFinancingRank","intervalMin","intervalMax","parseSalaryLowerK","companyMeta","autoScan"]
         .forEach(function(k){ ok(f+" free of "+k, t.indexOf(k)===-1); });
     });
+  ok("nothing navigates the browser on its own any more",
+     fs.readFileSync(D+"src/content/panel.js","utf8").indexOf("maybeAutoNavigate")===-1);
   ok("store.js keeps the old interval names only inside the migration",
      (function(){ const t=fs.readFileSync(D+"src/lib/store.js","utf8");
        const i=t.indexOf("intervalMin");

@@ -294,7 +294,7 @@
     if (t === "chat") return onChat();
     if (t === "search") return onSearch();
     if (t === "detail") return onDetail();
-    // other page types are left to the panel's autoScan
+    // other page types are left alone; the user starts a run from the panel
   }
 
   async function run() {
