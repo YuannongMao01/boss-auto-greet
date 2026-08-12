@@ -44,9 +44,11 @@
         continue;
       }
       existing.add(job.jobId); // guard against duplicates within a single scan
+      const meta = B.filters.companyMeta(job);   // kept on the item so the panel can show it
       toAdd.push({
         jobId: job.jobId, name: job.name, salary: job.salary, company: job.company,
         location: job.location, tags: job.tags, url: job.url,
+        scaleText: meta.scaleText, stageText: meta.stageText,
         approved: true, status: "pending"
       });
     }

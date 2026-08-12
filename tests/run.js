@@ -249,6 +249,78 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
     ok(f+" free of the old product name", fs.readFileSync(D+f,"utf8").indexOf("Boss 招呼助手")===-1);
   });
 
+  console.log("\n[10] company quality filters");
+  eq("headcount range -> lower bound", F.parseCompanyScale("互联网 已上市 100-499人").min, 100);
+  eq("smallest bucket", F.parseCompanyScale("0-20人").min, 0);
+  eq("20-99人", F.parseCompanyScale("电子商务 A轮 20-99人").min, 20);
+  eq("1000-9999人", F.parseCompanyScale("1000-9999人").min, 1000);
+  eq("open ended bucket", F.parseCompanyScale("10000人以上").min, 10000);
+  eq("label is reported back for the panel", F.parseCompanyScale("10000人以上").text, "10000人以上");
+  eq("no headcount on the card -> null", F.parseCompanyScale("互联网 已上市").min, null);
+  eq("a salary range is not read as a headcount", F.parseCompanyScale("15-25K·13薪").min, null);
+
+  eq("未融资 ranks lowest", F.parseFinancingStage("互联网 未融资 0-20人").rank, 1);
+  eq("天使轮", F.parseFinancingStage("天使轮").rank, 2);
+  eq("A轮", F.parseFinancingStage("A轮").rank, 3);
+  eq("已上市 ranks top", F.parseFinancingStage("已上市").rank, 7);
+  eq("REGRESSION 不需要融资 is not read as 未融资", F.parseFinancingStage("不需要融资").rank, 7);
+  eq("REGRESSION D轮及以上 is not read as D轮 only", F.parseFinancingStage("D轮及以上").text, "D轮及以上");
+  eq("no stage on the card -> null", F.parseFinancingStage("互联网 500-999人").rank, null);
+
+  function co(name, extra){
+    const c={ name:"数据分析实习生", company:name, salary:"200-300元/天", location:"上海·浦东新区", tags:["在校/应届"] };
+    c._raw=[c.name,c.company,c.tags.join(" "),c.location,c.salary,extra||""].join(" ");
+    return c;
+  }
+  const big=co("大厂科技","互联网 已上市 10000人以上");
+  const tiny=co("小小信息","互联网 未融资 0-20人");
+  const blank=co("某某科技","");
+
+  ok("no company rules -> everything passes", F.matches(tiny,{}).ok===true);
+  ok("headcount floor keeps a large company", F.matches(big,{minCompanyScale:500}).ok===true);
+  const rs=F.matches(tiny,{minCompanyScale:500});
+  ok("headcount floor rejects a tiny company and names its size",
+     rs.ok===false && rs.reason.indexOf("0-20人")>=0, rs);
+  ok("an unknown headcount is kept rather than rejected", F.matches(blank,{minCompanyScale:10000}).ok===true);
+
+  ok("stage floor keeps a listed company", F.matches(big,{minFinancingRank:6}).ok===true);
+  const rf=F.matches(tiny,{minFinancingRank:3});
+  ok("stage floor rejects an unfunded company and names the stage",
+     rf.ok===false && rf.reason.indexOf("未融资")>=0, rf);
+  ok("an unknown stage is kept rather than rejected", F.matches(blank,{minFinancingRank:7}).ok===true);
+
+  const rc=F.matches(co("某某人力资源","互联网 已上市 10000人以上"),{excludeCompanies:["某某人力"]});
+  ok("company blacklist rejects by name and reports it",
+     rc.ok===false && rc.reason.indexOf("某某人力")>=0, rc);
+  ok("company blacklist leaves other companies alone",
+     F.matches(big,{excludeCompanies:["某某人力"]}).ok===true);
+  const mention=co("大厂科技","互联网 已上市 10000人以上 合作方某某人力");
+  ok("company blacklist matches the company name only, not the rest of the card",
+     F.matches(mention,{excludeCompanies:["某某人力"]}).ok===true);
+
+  ["外包","劳务","派遣","猎头","驻场"].forEach(function(w){
+    const r=F.matches(co("某某科技", w+" 已上市 10000人以上"),{blockAgency:true});
+    ok("agency filter rejects a "+w+" listing", r.ok===false && r.reason.indexOf(w)>=0, r);
+  });
+  ok("agency filter leaves a normal listing alone", F.matches(big,{blockAgency:true}).ok===true);
+  ok("agency filter is off by default", F.matches(co("某某科技","外包 已上市"),{}).ok===true);
+
+  console.log("\n[10b] company fields are wired through config, popup and the panel row");
+  ["excludeCompanies","minCompanyScale","minFinancingRank","blockAgency"].forEach(function(k){
+    ok("DEFAULT_CONFIG declares "+k, k in B.store.DEFAULT_CONFIG);
+  });
+  const coPopupJs=fs.readFileSync(D+"src/popup/popup.js","utf8");
+  const coPopupHtml=fs.readFileSync(D+"src/popup/popup.html","utf8");
+  ["excludeCompanies","minCompanyScale","minFinancingRank","blockAgency"].forEach(function(k){
+    ok("popup.js saves "+k, coPopupJs.indexOf(k)>=0);
+    ok("popup.html has a control for "+k, coPopupHtml.indexOf('id="'+k+'"')>=0);
+  });
+  const coScanner=fs.readFileSync(D+"src/content/scanner.js","utf8");
+  ok("scanner stores the company facts on the queue item",
+     coScanner.indexOf("companyMeta")>=0 && coScanner.indexOf("scaleText")>=0);
+  const coPanel=fs.readFileSync(D+"src/content/panel.js","utf8");
+  ok("panel row shows the company facts", coPanel.indexOf("job.scaleText")>=0 && coPanel.indexOf("job.stageText")>=0);
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

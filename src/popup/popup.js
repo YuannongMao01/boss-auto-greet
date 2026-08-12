@@ -1,6 +1,7 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
   searchQuery: "", includeAny: [], excludeKeywords: [], cities: [], minSalary: 0, greeting: "", autoScan: false,
+  excludeCompanies: [], minCompanyScale: 0, minFinancingRank: 0, blockAgency: false,
   dailyCap: 40, intervalMin: 8, intervalMax: 30
 };
 
@@ -18,6 +19,10 @@ async function load() {
   document.getElementById("includeAny").value = fmtList(c.includeAny);
   document.getElementById("excludeKeywords").value = fmtList(c.excludeKeywords);
   document.getElementById("cities").value = fmtList(c.cities);
+  document.getElementById("excludeCompanies").value = fmtList(c.excludeCompanies);
+  document.getElementById("minCompanyScale").value = String(c.minCompanyScale || 0);
+  document.getElementById("minFinancingRank").value = String(c.minFinancingRank || 0);
+  document.getElementById("blockAgency").checked = !!c.blockAgency;
   document.getElementById("minSalary").value = c.minSalary;
   document.getElementById("dailyCap").value = c.dailyCap;
   document.getElementById("intervalMin").value = c.intervalMin;
@@ -54,6 +59,10 @@ async function save() {
     includeAny: parseList(document.getElementById("includeAny").value),
     excludeKeywords: parseList(document.getElementById("excludeKeywords").value),
     cities: parseList(document.getElementById("cities").value),
+    excludeCompanies: parseList(document.getElementById("excludeCompanies").value),
+    minCompanyScale: gi("minCompanyScale") || 0,
+    minFinancingRank: gi("minFinancingRank") || 0,
+    blockAgency: document.getElementById("blockAgency").checked,
     minSalary: Math.max(0, gi("minSalary") || 0),
     dailyCap: Math.max(1, gi("dailyCap") || 40),
     intervalMin: iMin,

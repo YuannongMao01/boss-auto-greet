@@ -6,6 +6,10 @@ window.BAG = window.BAG || {};
     includeAny: [],        // topic keywords, a result is kept when it contains ANY of them
     excludeKeywords: [],   // blacklist, a single hit rejects the job
     cities: [],            // accepted cities, matched against the job location
+    excludeCompanies: [],  // company name blacklist, matched against the company name only
+    minCompanyScale: 0,    // minimum company headcount, 0 means no limit
+    minFinancingRank: 0,   // minimum financing stage rank 1..7, 0 means no limit
+    blockAgency: false,    // reject outsourcing, staffing and headhunter listings
     minSalary: 0,          // minimum salary in K, 0 means no limit
     greeting: "",          // custom opener, empty means rely on the account default
     dailyCap: 40,          // max greetings per day

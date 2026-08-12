@@ -99,8 +99,9 @@
       };
       const info = el("div", "bag-info");
       info.appendChild(el("div", "bag-name", job.name || "(无名)"));
-      info.appendChild(el("div", "bag-sub", (job.salary || "") + " · " + (job.company || "")));
-      info.appendChild(el("div", "bag-sub2", (job.location || "") + " · " + statusLabel(job.status)));
+      info.appendChild(el("div", "bag-sub", [job.salary, job.company].filter(Boolean).join(" · ")));
+      const facts = [job.location, job.scaleText, job.stageText, statusLabel(job.status)];
+      info.appendChild(el("div", "bag-sub2", facts.filter(Boolean).join(" · ")));
       row.appendChild(cb);
       row.appendChild(info);
       list.appendChild(row);
