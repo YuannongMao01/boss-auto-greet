@@ -1,8 +1,8 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
-  searchQuery: "", includeAny: [], excludeKeywords: [], cities: [], minSalary: 0, greeting: "", autoScan: false,
-  excludeCompanies: [], minCompanyScale: 0, minFinancingRank: 0, blockAgency: false, requireCompanyLogo: false,
-  dailyCap: 40, intervalMin: 8, intervalMax: 30
+  searchQuery: "", includeAny: [], excludeKeywords: [], cities: [], greeting: "", autoScan: false,
+  excludeCompanies: [], blockAgency: false, requireCompanyLogo: false,
+  dailyCap: 40, intervalSec: 20
 };
 
 function get(keys) { return new Promise(function (r) { chrome.storage.local.get(keys, r); }); }
@@ -20,14 +20,10 @@ async function load() {
   document.getElementById("excludeKeywords").value = fmtList(c.excludeKeywords);
   document.getElementById("cities").value = fmtList(c.cities);
   document.getElementById("excludeCompanies").value = fmtList(c.excludeCompanies);
-  document.getElementById("minCompanyScale").value = String(c.minCompanyScale || 0);
-  document.getElementById("minFinancingRank").value = String(c.minFinancingRank || 0);
   document.getElementById("blockAgency").checked = !!c.blockAgency;
   document.getElementById("requireCompanyLogo").checked = !!c.requireCompanyLogo;
-  document.getElementById("minSalary").value = c.minSalary;
   document.getElementById("dailyCap").value = c.dailyCap;
-  document.getElementById("intervalMin").value = c.intervalMin;
-  document.getElementById("intervalMax").value = c.intervalMax;
+  document.getElementById("intervalSec").value = c.intervalSec;
   document.getElementById("greeting").value = c.greeting || "";
   document.getElementById("autoScan").checked = !!c.autoScan;
 
@@ -52,23 +48,16 @@ async function load() {
 
 async function save() {
   const gi = function (id) { return parseInt(document.getElementById(id).value, 10); };
-  let iMin = gi("intervalMin"), iMax = gi("intervalMax");
-  if (isNaN(iMin) || iMin < 1) iMin = 1;
-  if (isNaN(iMax) || iMax < iMin) iMax = iMin;
   const config = {
     searchQuery: document.getElementById("searchQuery").value.trim(),
     includeAny: parseList(document.getElementById("includeAny").value),
     excludeKeywords: parseList(document.getElementById("excludeKeywords").value),
     cities: parseList(document.getElementById("cities").value),
     excludeCompanies: parseList(document.getElementById("excludeCompanies").value),
-    minCompanyScale: gi("minCompanyScale") || 0,
-    minFinancingRank: gi("minFinancingRank") || 0,
     blockAgency: document.getElementById("blockAgency").checked,
     requireCompanyLogo: document.getElementById("requireCompanyLogo").checked,
-    minSalary: Math.max(0, gi("minSalary") || 0),
     dailyCap: Math.max(1, gi("dailyCap") || 40),
-    intervalMin: iMin,
-    intervalMax: iMax,
+    intervalSec: Math.max(1, gi("intervalSec") || 20),
     greeting: document.getElementById("greeting").value.trim(),
     autoScan: document.getElementById("autoScan").checked
   };

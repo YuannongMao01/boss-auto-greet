@@ -13,8 +13,7 @@
 var __DB = {
   config: { searchQuery: "算法实习", includeAny: [], cities: ["上海"], autoScan: false },
   queue: [
-    { jobId: "j1", name: "算法实习生 A", status: "pending", approved: true,
-      location: "上海·浦东新区", scaleText: "10000人以上", stageText: "已上市" },
+    { jobId: "j1", name: "算法实习生 A", status: "pending", approved: true, location: "上海·浦东新区" },
     { jobId: "j2", name: "算法实习生 B", status: "pending", approved: true },
     { jobId: "j3", name: "算法实习生 C", status: "pending", approved: false },
     { jobId: "j4", name: "已招呼过的岗位", status: "greeted", approved: true }
@@ -175,11 +174,7 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   ok("greeted row checkbox is disabled", boxes().filter(function (b) { return b.disabled; }).length === 1);
 
   var sub2 = [].slice.call(root.querySelectorAll(".bag-sub2"));
-  // the list renders newest first, so the fixture row carrying company facts is the last one
-  var facts0 = sub2[sub2.length - 1].textContent;
-  ok("row shows the company size and funding stage",
-     facts0.indexOf("10000人以上") >= 0 && facts0.indexOf("已上市") >= 0, facts0);
-  ok("a row with no company facts renders no empty separators",
+  ok("a row with no location renders no empty separators",
      /\u00b7\s*\u00b7/.test(sub2[1].textContent) === false && sub2[1].textContent.trim().charAt(0) !== "\u00b7",
      sub2[1].textContent);
 

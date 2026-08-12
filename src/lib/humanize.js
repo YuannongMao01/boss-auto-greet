@@ -13,9 +13,5 @@ window.BAG = window.BAG || {};
   function sleep(ms) {
     return new Promise(function (r) { setTimeout(r, ms); });
   }
-  // Convert a range in seconds to a random value in milliseconds
-  function delayMs(minSec, maxSec) {
-    return randInt(minSec * 1000, maxSec * 1000);
-  }
-  window.BAG.humanize = { randInt: randInt, jitter: jitter, sleep: sleep, delayMs: delayMs };
+  window.BAG.humanize = { randInt: randInt, jitter: jitter, sleep: sleep };
 })();

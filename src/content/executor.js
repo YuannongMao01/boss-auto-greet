@@ -223,7 +223,8 @@
 
       await B.store.setTask({ active: true, jobId: next.jobId, name: next.name, returnUrl: location.href });
       const cfg = await B.store.getConfig();
-      const waitMs = B.humanize.delayMs(cfg.intervalMin, cfg.intervalMax);
+      // One configured gap, jittered so the rhythm never becomes exactly periodic
+      const waitMs = B.humanize.jitter(cfg.intervalSec * 1000, 0.3);
       await setStatus("等待 " + Math.round(waitMs / 1000) + "s 后处理：" + next.name);
       if (!(await interruptibleWait(waitMs))) return;
 

@@ -21,6 +21,10 @@
     <label>屏蔽关键词（黑名单，命中即排除）</label>
     <input id="excludeKeywords" placeholder="如：外包, 销售" />
   </div>
+  <div class="field check">
+    <label><input id="blockAgency" type="checkbox" /> 屏蔽外包、劳务派遣、猎头、驻场岗位</label>
+    <div class="tip">命中 外包/劳务/派遣/人力资源服务/人事代理/人才服务/众包/猎头/驻场 任一即排除，比对整张卡片。</div>
+  </div>
   <div class="field">
     <label>城市（location 包含任一，逗号分隔）</label>
     <input id="cities" placeholder="如：杭州, 上海" />
@@ -30,61 +34,25 @@
     <input id="excludeCompanies" placeholder="如：某某人力, 某某信息技术" />
     <div class="tip">只比对<b>公司名</b>，不会因为岗位描述里提到这家公司而误杀。</div>
   </div>
-  <div class="row">
-    <div class="field half">
-      <label>公司规模下限</label>
-      <select id="minCompanyScale">
-        <option value="0">不限</option>
-        <option value="20">20 人以上</option>
-        <option value="100">100 人以上</option>
-        <option value="500">500 人以上</option>
-        <option value="1000">1000 人以上</option>
-        <option value="10000">10000 人以上</option>
-      </select>
-    </div>
-    <div class="field half">
-      <label>融资阶段下限</label>
-      <select id="minFinancingRank">
-        <option value="0">不限</option>
-        <option value="2">天使轮及以上</option>
-        <option value="3">A 轮及以上</option>
-        <option value="4">B 轮及以上</option>
-        <option value="5">C 轮及以上</option>
-        <option value="6">D 轮及以上</option>
-        <option value="7">已上市 / 不需要融资</option>
-      </select>
-    </div>
-  </div>
   <div class="field check">
     <label><input id="requireCompanyLogo" type="checkbox" /> 只投上传过公司 logo 的公司（跳过还在用 Boss 默认图的）</label>
     <div class="tip">默认图是靠<b>同一张图被本页多家不同公司共用</b>认出来的，不写死图片地址；本页读不到 logo 时不会拦任何岗位。判定结果可以点面板的「调试」核对。</div>
-  </div>
-  <div class="field check">
-    <label><input id="blockAgency" type="checkbox" /> 屏蔽外包、劳务派遣、猎头、驻场岗位</label>
-    <div class="tip">卡片上没写规模或融资阶段的公司<b>不会</b>被这两个下限拦掉，和薪资一样按“看不到就放过”处理。</div>
   </div>
   <div class="field check">
     <label><input id="autoScan" type="checkbox" /> 自动监控：进入 Boss 首页/推荐页自动跳到搜索页（需填搜索词+城市）</label>
   </div>
   <div class="row">
     <div class="field half">
-      <label>薪资下限（K，0=不限）</label>
-      <input id="minSalary" type="number" min="0" />
-    </div>
-    <div class="field half">
       <label>每日上限</label>
       <input id="dailyCap" type="number" min="1" />
     </div>
+    <div class="field half">
+      <label>活动间隔（秒）</label>
+      <input id="intervalSec" type="number" min="1" />
+    </div>
   </div>
-  <div class="row">
-    <div class="field half">
-      <label>间隔下限（秒）</label>
-      <input id="intervalMin" type="number" min="1" />
-    </div>
-    <div class="field half">
-      <label>间隔上限（秒）</label>
-      <input id="intervalMax" type="number" min="1" />
-    </div>
+  <div class="field">
+    <div class="tip">实际等待会在这个数字上下浮动 30%（填 20 秒就是 14~26 秒之间随机）。固定节奏太像机器，这层抖动一直在。</div>
   </div>
   <div class="field">
     <label>打招呼语（留空则用 Boss 账号默认招呼语）</label>

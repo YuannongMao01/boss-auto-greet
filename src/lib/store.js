@@ -7,15 +7,11 @@ window.BAG = window.BAG || {};
     excludeKeywords: [],   // blacklist, a single hit rejects the job
     cities: [],            // accepted cities, matched against the job location
     excludeCompanies: [],  // company name blacklist, matched against the company name only
-    minCompanyScale: 0,    // minimum company headcount, 0 means no limit
-    minFinancingRank: 0,   // minimum financing stage rank 1..7, 0 means no limit
     blockAgency: false,    // reject outsourcing, staffing and headhunter listings
     requireCompanyLogo: false, // reject companies still showing Boss's placeholder logo
-    minSalary: 0,          // minimum salary in K, 0 means no limit
     greeting: "",          // custom opener, empty means rely on the account default
     dailyCap: 40,          // max greetings per day
-    intervalMin: 8,        // minimum gap between greetings, seconds
-    intervalMax: 30        // maximum gap between greetings, seconds
+    intervalSec: 20        // gap between greetings, seconds, jittered by 30% at run time
   };
 
   function get(keys) { return new Promise(function (r) { chrome.storage.local.get(keys, r); }); }
@@ -32,6 +28,15 @@ window.BAG = window.BAG || {};
     // mustInclude was an all-of filter; the same words are a far better any-of list
     if (!c.includeAny.length && Array.isArray(c.mustInclude) && c.mustInclude.length) {
       c.includeAny = c.mustInclude;
+    }
+    // The gap used to be a min and max pair. One number is enough because the executor jitters it,
+    // so the midpoint of an old range reproduces the same average pace. The check reads the STORED
+    // object, not the merged one: the default would otherwise always supply intervalSec and the
+    // migration could never fire.
+    const stored = o.config || {};
+    if (typeof stored.intervalSec !== "number" &&
+        typeof stored.intervalMin === "number" && typeof stored.intervalMax === "number") {
+      c.intervalSec = Math.max(1, Math.round((stored.intervalMin + stored.intervalMax) / 2));
     }
     return c;
   }

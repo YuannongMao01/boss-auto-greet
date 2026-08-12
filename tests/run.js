@@ -23,16 +23,8 @@ function load(f){ vm.runInContext(fs.readFileSync(D+f,"utf8"), ctx, {filename:f}
 ["src/lib/logger.js","src/lib/humanize.js","src/lib/store.js","src/lib/selectors.js","src/lib/cities.js","src/lib/filters.js"].forEach(load);
 const B = ctx.window.BAG;
 
-console.log("\n[1] filters.parseSalaryLowerK");
+console.log("\n[1] filters.matches with topic keywords / exclude / city");
 const F=B.filters;
-eq("15-25K", F.parseSalaryLowerK("15-25K"), 15);
-eq("K unit with month-count suffix", F.parseSalaryLowerK("20K·13薪"), 20);
-eq("mixed CJK units, first unit wins", F.parseSalaryLowerK("8千-1.2万"), 8);
-eq("CJK ten-thousand unit scales to K", F.parseSalaryLowerK("1-1.5万"), 10);
-eq("negotiable -> null", F.parseSalaryLowerK("面议"), null);
-eq("hidden salary -> null", F.parseSalaryLowerK("-K·薪"), null);
-
-console.log("\n[2] filters.matches with topic keywords / exclude / city / salary");
 const job={ name:"SLAM算法实习生", company:"某某科技", tags:["在校/应届","本科"], location:"上海·浦东新区", salary:"200-300元/天" };
 job._raw=[job.name,job.company,job.tags.join(" "),job.location,job.salary].join(" ");
 eq("no topic keywords -> ok", F.matches(job,{includeAny:[]}), {ok:true});
@@ -65,12 +57,6 @@ ok("exclude hit", r3.ok===false && r3.reason.indexOf("SLAM")>=0, r3);
 const r4=F.matches(cardOnly,{cities:["杭州"]});
 ok("city mismatch", r4.ok===false && r4.reason==="城市不匹配", r4);
 eq("city match", F.matches(cardOnly,{cities:["上海"]}), {ok:true});
-const r5=F.matches({name:"x",salary:"10-15K",_raw:"x"},{minSalary:20});
-ok("salary below floor", r5.ok===false && r5.reason==="薪资低于下限", r5);
-eq("salary unknown passes", F.matches({name:"x",salary:"面议",_raw:"x"},{minSalary:20}), {ok:true});
-ok("filters has no all-of leftovers",
-   !/matchMode|config\.keywords|mustInclude/.test(fs.readFileSync(D+"src/lib/filters.js","utf8")));
-
 console.log("\n[3] cities.buildSearchUrl uses searchQuery");
 const u=B.cities.buildSearchUrl({searchQuery:"算法实习", cities:["上海"]});
 ok("url is /web/geek/jobs with query+city", u.indexOf("/web/geek/jobs?")>0 && u.indexOf("query=")>0 && u.indexOf("101020100")>0, u);
@@ -131,10 +117,17 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   DB={ config:{ searchQuery:"实习", mustInclude:["数据","AI","Agent"] } };
   c=await B.store.getConfig();
   eq("mustInclude migrates to includeAny", c.includeAny, ["数据","AI","Agent"]);
+  DB={ config:{ searchQuery:"实习", intervalMin:8, intervalMax:30 } };
+  c=await B.store.getConfig();
+  eq("an old interval range collapses to its midpoint", c.intervalSec, 19);
+  DB={ config:{ searchQuery:"实习", intervalSec:12, intervalMin:8, intervalMax:30 } };
+  c=await B.store.getConfig();
+  eq("an explicit intervalSec wins over the legacy range", c.intervalSec, 12);
+
   DB={ config:{ searchQuery:"实习", mustInclude:["数据"], includeAny:["AI"] } };
   c=await B.store.getConfig();
   eq("an existing includeAny wins over the legacy field", c.includeAny, ["AI"]);
-  ok("defaults present", c.dailyCap>0 && typeof c.intervalMin==="number", {cap:c.dailyCap});
+  ok("defaults present", c.dailyCap>0 && typeof c.intervalSec==="number", {cap:c.dailyCap});
 
   DB={};
   c=await B.store.getConfig();
@@ -249,24 +242,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
     ok(f+" free of the old product name", fs.readFileSync(D+f,"utf8").indexOf("Boss 招呼助手")===-1);
   });
 
-  console.log("\n[10] company quality filters");
-  eq("headcount range -> lower bound", F.parseCompanyScale("互联网 已上市 100-499人").min, 100);
-  eq("smallest bucket", F.parseCompanyScale("0-20人").min, 0);
-  eq("20-99人", F.parseCompanyScale("电子商务 A轮 20-99人").min, 20);
-  eq("1000-9999人", F.parseCompanyScale("1000-9999人").min, 1000);
-  eq("open ended bucket", F.parseCompanyScale("10000人以上").min, 10000);
-  eq("label is reported back for the panel", F.parseCompanyScale("10000人以上").text, "10000人以上");
-  eq("no headcount on the card -> null", F.parseCompanyScale("互联网 已上市").min, null);
-  eq("a salary range is not read as a headcount", F.parseCompanyScale("15-25K·13薪").min, null);
-
-  eq("未融资 ranks lowest", F.parseFinancingStage("互联网 未融资 0-20人").rank, 1);
-  eq("天使轮", F.parseFinancingStage("天使轮").rank, 2);
-  eq("A轮", F.parseFinancingStage("A轮").rank, 3);
-  eq("已上市 ranks top", F.parseFinancingStage("已上市").rank, 7);
-  eq("REGRESSION 不需要融资 is not read as 未融资", F.parseFinancingStage("不需要融资").rank, 7);
-  eq("REGRESSION D轮及以上 is not read as D轮 only", F.parseFinancingStage("D轮及以上").text, "D轮及以上");
-  eq("no stage on the card -> null", F.parseFinancingStage("互联网 500-999人").rank, null);
-
+  console.log("\n[9] company blacklist and the agency filter");
   function co(name, extra){
     const c={ name:"数据分析实习生", company:name, salary:"200-300元/天", location:"上海·浦东新区", tags:["在校/应届"] };
     c._raw=[c.name,c.company,c.tags.join(" "),c.location,c.salary,extra||""].join(" ");
@@ -277,18 +253,6 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   const blank=co("某某科技","");
 
   ok("no company rules -> everything passes", F.matches(tiny,{}).ok===true);
-  ok("headcount floor keeps a large company", F.matches(big,{minCompanyScale:500}).ok===true);
-  const rs=F.matches(tiny,{minCompanyScale:500});
-  ok("headcount floor rejects a tiny company and names its size",
-     rs.ok===false && rs.reason.indexOf("0-20人")>=0, rs);
-  ok("an unknown headcount is kept rather than rejected", F.matches(blank,{minCompanyScale:10000}).ok===true);
-
-  ok("stage floor keeps a listed company", F.matches(big,{minFinancingRank:6}).ok===true);
-  const rf=F.matches(tiny,{minFinancingRank:3});
-  ok("stage floor rejects an unfunded company and names the stage",
-     rf.ok===false && rf.reason.indexOf("未融资")>=0, rf);
-  ok("an unknown stage is kept rather than rejected", F.matches(blank,{minFinancingRank:7}).ok===true);
-
   const rc=F.matches(co("某某人力资源","互联网 已上市 10000人以上"),{excludeCompanies:["某某人力"]});
   ok("company blacklist rejects by name and reports it",
      rc.ok===false && rc.reason.indexOf("某某人力")>=0, rc);
@@ -305,23 +269,17 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   ok("agency filter leaves a normal listing alone", F.matches(big,{blockAgency:true}).ok===true);
   ok("agency filter is off by default", F.matches(co("某某科技","外包 已上市"),{}).ok===true);
 
-  console.log("\n[10b] company fields are wired through config, popup and the panel row");
-  ["excludeCompanies","minCompanyScale","minFinancingRank","blockAgency"].forEach(function(k){
+  console.log("\n[9b] company fields are wired through config and the popup");
+  ["excludeCompanies","blockAgency"].forEach(function(k){
     ok("DEFAULT_CONFIG declares "+k, k in B.store.DEFAULT_CONFIG);
   });
   const coPopupJs=fs.readFileSync(D+"src/popup/popup.js","utf8");
   const coPopupHtml=fs.readFileSync(D+"src/popup/popup.html","utf8");
-  ["excludeCompanies","minCompanyScale","minFinancingRank","blockAgency"].forEach(function(k){
+  ["excludeCompanies","blockAgency"].forEach(function(k){
     ok("popup.js saves "+k, coPopupJs.indexOf(k)>=0);
     ok("popup.html has a control for "+k, coPopupHtml.indexOf('id="'+k+'"')>=0);
   });
-  const coScanner=fs.readFileSync(D+"src/content/scanner.js","utf8");
-  ok("scanner stores the company facts on the queue item",
-     coScanner.indexOf("companyMeta")>=0 && coScanner.indexOf("scaleText")>=0);
-  const coPanel=fs.readFileSync(D+"src/content/panel.js","utf8");
-  ok("panel row shows the company facts", coPanel.indexOf("job.scaleText")>=0 && coPanel.indexOf("job.stageText")>=0);
-
-  console.log("\n[11] placeholder company logo detection");
+  console.log("\n[10] placeholder company logo detection");
   function lj(company, logo){ return { company: company, logo: logo, name: "job", _raw: company }; }
   const REAL="https://img.bosszhipin.com/beijin/upload/com/real-a.png";
   const REAL2="https://img.bosszhipin.com/beijin/upload/com/real-b.png";
@@ -354,7 +312,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   ok("verdict: own image -> real", F.isDefaultLogo(REAL,phSet)===false);
   ok("verdict: unreadable src stays lenient", F.isDefaultLogo("",phSet)===false);
 
-  console.log("\n[11b] the logo rule must never be able to reject a whole page");
+  console.log("\n[10b] the logo rule must never be able to reject a whole page");
   // If the logo selector ever stops matching, every src is empty. That must not wipe the feed out,
   // the same lenient rule used for a hidden salary or an unstated company size.
   const blindPage=[]; for (let i=0;i<20;i++) blindPage.push(lj("公司"+i,""));
@@ -367,7 +325,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   });
   eq("REGRESSION selector miss keeps every job instead of filtering all 20", survived, 20);
 
-  console.log("\n[11c] matches honours requireCompanyLogo");
+  console.log("\n[10c] matches honours requireCompanyLogo");
   function logoJob(isDefault){
     const c={ name:"数据分析实习生", company:"某某科技", salary:"200-300元/天",
               location:"上海·浦东新区", tags:["在校/应届"], logoIsDefault:isDefault };
@@ -387,7 +345,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   eq("logo report says so when nothing could be read",
      F.logoReport([lj("a",""),lj("b","")]).indexOf("没读到 logo")>=0, true);
 
-  console.log("\n[11d] logo fields are wired through config, popup, scanner and panel");
+  console.log("\n[10d] logo fields are wired through config, popup, scanner and panel");
   ok("DEFAULT_CONFIG declares requireCompanyLogo", "requireCompanyLogo" in B.store.DEFAULT_CONFIG);
   const lgPopupJs=fs.readFileSync(D+"src/popup/popup.js","utf8");
   const lgPopupHtml=fs.readFileSync(D+"src/popup/popup.html","utf8");
@@ -405,6 +363,38 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   ok("logo selectors are tried one at a time, not as one selector list",
      /companyLogo:\s*\[/.test(lgSel));
   ok("parseCard carries the logo url", /logo:\s*logoSrc\(card\)/.test(lgSel));
+
+  console.log("\n[11] one activity interval, jittered, replaces the old min/max pair");
+  (function(){
+    const H=B.humanize;
+    let lo=Infinity, hi=-Infinity;
+    for (let i=0;i<400;i++){ const v=H.jitter(20000,0.3); if(v<lo)lo=v; if(v>hi)hi=v; }
+    ok("jitter stays inside 30% of the configured gap", lo>=14000 && hi<=26000, {lo:lo,hi:hi});
+    ok("jitter is not a constant, so the rhythm never becomes periodic", hi-lo>1000, {span:hi-lo});
+    ok("the range helper went away with the min/max pair", H.delayMs===undefined);
+  })();
+  const exSrc=fs.readFileSync(D+"src/content/executor.js","utf8");
+  ok("executor waits on the single configured gap", /jitter\(cfg\.intervalSec \* 1000/.test(exSrc));
+
+  console.log("\n[11b] removed settings must not creep back");
+  ["minSalary","minCompanyScale","minFinancingRank","intervalMin","intervalMax","workStart","workEnd","todayOnly"]
+    .forEach(function(k){ ok("DEFAULT_CONFIG free of "+k, !(k in B.store.DEFAULT_CONFIG)); });
+  ["src/lib/filters.js","src/popup/popup.js","src/popup/popup.html","src/content/executor.js","src/content/panel.js","src/content/scanner.js"]
+    .forEach(function(f){
+      const t=fs.readFileSync(D+f,"utf8");
+      ["minSalary","minCompanyScale","minFinancingRank","intervalMin","intervalMax","parseSalaryLowerK","companyMeta"]
+        .forEach(function(k){ ok(f+" free of "+k, t.indexOf(k)===-1); });
+    });
+  ok("store.js keeps the old interval names only inside the migration",
+     (function(){ const t=fs.readFileSync(D+"src/lib/store.js","utf8");
+       const i=t.indexOf("intervalMin");
+       return i>=0 && t.slice(0,i).indexOf("The gap used to be a min and max pair")>=0; })());
+  ok("popup.html still carries the single interval input",
+     fs.readFileSync(D+"src/popup/popup.html","utf8").indexOf('id="intervalSec"')>=0);
+  ok("the agency toggle sits directly under the blacklist field",
+     (function(){ const t=fs.readFileSync(D+"src/popup/popup.html","utf8");
+       return t.indexOf('id="blockAgency"') > t.indexOf('id="excludeKeywords"') &&
+              t.indexOf('id="blockAgency"') < t.indexOf('id="cities"'); })());
 
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
