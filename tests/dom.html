@@ -79,7 +79,7 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   ok("actions container exists", !!acts);
   ok("two secondary buttons side by side", sec && sec.children.length === 2, sec ? sec.children.length : null);
   ok("secondary order is scan then clear",
-     sec.children[0].textContent === "扫描本页" && sec.children[1].textContent === "清空队列",
+     sec.children[0].textContent === "扫描全部" && sec.children[1].textContent === "清空队列",
      [sec.children[0].textContent, sec.children[1].textContent]);
   ok("stack order is main, secondary, debug",
      acts.children[0].className.indexOf("bag-main") >= 0 &&

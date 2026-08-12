@@ -75,6 +75,48 @@
     };
   }
 
+  // Scroll the feed by one batch. The last card is scrolled into view rather than moving the
+  // window, so this also works when the list lives inside its own scrolling container.
+  function loadMoreCards() {
+    const cards = B.dom.getAllCards();
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ block: "end", behavior: "smooth" });
+    else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  }
+
+  async function waitForGrowth(before, timeoutMs) {
+    const start = Date.now();
+    while (Date.now() - start < (timeoutMs || 2500)) {
+      if (B.dom.getAllCards().length > before) return true;
+      await B.humanize.sleep(300);
+    }
+    return false;
+  }
+
+  // scanOnce only ever sees the batch the page has rendered, so anything further down the feed
+  // used to require the user to scroll there first. scanAll walks the entire result list instead:
+  // scan, pull the next batch, scan again, until the feed stops growing. Interruptible between
+  // batches, and it gives up as soon as a captcha appears rather than hammering the site.
+  const MAX_SCAN_BATCHES = 60;
+
+  async function scanAll(onProgress, shouldContinue) {
+    let r = await scanOnce();
+    let added = r.added, batches = 1, stopped = "";
+    for (; batches <= MAX_SCAN_BATCHES; batches++) {
+      if (B.dom.detectCaptcha()) { stopped = "captcha"; break; }
+      if (shouldContinue && !(await shouldContinue())) { stopped = "stopped"; break; }
+      const before = B.dom.getAllCards().length;
+      if (onProgress) await onProgress({ cards: before, added: added, batch: batches });
+      loadMoreCards();
+      if (!(await waitForGrowth(before, 2500))) break;   // reached the end of the feed
+      r = await scanOnce();
+      added += r.added;
+    }
+    // One last pass, so a batch that arrived after the growth wait still gets counted. scanOnce
+    // rescans every rendered card, so its totals already describe the whole loaded feed.
+    const final = await scanOnce();
+    return Object.assign({}, final, { added: added + final.added, batches: batches, stopped: stopped });
+  }
+
   function startObserving() {
     if (scanning) return;
     scanning = true;
@@ -93,5 +135,9 @@
     observer = null;
   }
 
-  B.scanner = { scanOnce: scanOnce, startObserving: startObserving, stopObserving: stopObserving };
+  B.scanner = {
+    scanOnce: scanOnce, scanAll: scanAll, loadMoreCards: loadMoreCards,
+    startObserving: startObserving, stopObserving: stopObserving,
+    MAX_SCAN_BATCHES: MAX_SCAN_BATCHES
+  };
 })();

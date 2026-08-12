@@ -206,15 +206,27 @@
     actions.appendChild(main);
 
     const secondary = el("div", "bag-secondary");
-    const rescan = el("button", null, "扫描本页");
+    // Sweeps the whole result list, scrolling the feed itself, so jobs further down no longer
+    // have to be scrolled to by hand. A second click stops it between batches.
+    const rescan = el("button", null, "扫描全部");
+    let sweeping = false;
     rescan.onclick = async function () {
-      const r = await B.scanner.scanOnce();
+      if (sweeping) { sweeping = false; rescan.textContent = "停止中…"; return; }
+      sweeping = true;
+      rescan.textContent = "停止扫描";
+      const r = await B.scanner.scanAll(async function (p) {
+        showMsg("扫描中：已加载 " + p.cards + " 个卡片 · 已入队 " + p.added + "（第 " + p.batch + " 批）");
+      }, async function () { return sweeping; });
+      sweeping = false;
+      rescan.textContent = "扫描全部";
       if (r.total === 0) showMsg("本页 0 个卡片 ← 选择器需校准，点「调试」看结构");
       else {
-        let m = "本页 " + r.total + " 个卡片：新增 " + r.added + " · 已在队列 " + r.inQueue +
-                " · 已招呼过 " + r.greeted + " · 不符筛选 " + r.filtered;
+        let m = "共 " + r.total + " 个卡片（滚了 " + r.batches + " 批）：新增 " + r.added +
+                " · 已在队列 " + r.inQueue + " · 已招呼过 " + r.greeted + " · 不符筛选 " + r.filtered;
         if (r.revived) m += " · 恢复 " + r.revived;
         if (r.filtered > 0 && r.topReason) m += "（主要原因：" + r.topReason + " ×" + r.topCount + "）";
+        if (r.stopped === "captcha") m = "出现验证码，已停止扫描。" + m;
+        else if (r.stopped === "stopped") m = "已手动停止。" + m;
         showMsg(m);
       }
       render();

@@ -462,6 +462,73 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
   ok("popup.html has a control for it",
      fs.readFileSync(D+"src/popup/popup.html","utf8").indexOf('id="titleIncludeAny"')>=0);
 
+  console.log("\n[14] scanAll sweeps the whole feed, not just the rendered batch");
+  // awaited: an un-awaited async block would let the summary print before these ever ran
+  await (async function(){
+    const SC = ctx.window.BAG.scanner;
+    const BATCH = 5, MAXB = 4;
+    let feed = [], batches = 0, captcha = false;
+    function mkc(i){
+      const c = { name:"数据实习生 "+i, tags:["在校/应届"], location:"上海", jobId:"g"+i,
+                  company:"X公司", salary:"20-30K", url:"/job_detail/g"+i+".html" };
+      c._raw = [c.name,c.company,c.tags.join(" "),c.location,c.salary].join(" ");
+      // the feed only renders the next batch once the last card is scrolled into view
+      c.scrollIntoView = function(){ if (batches < MAXB) { batches++; render(); } };
+      return c;
+    }
+    function render(){ feed = []; for (let i=0;i<batches*BATCH;i++) feed.push(mkc(i)); }
+    function reset(){ batches = 1; render(); DB = { config:{ searchQuery:"实习", includeAny:[], cities:["上海"] } }; }
+    ctx.window.BAG.dom = { getAllCards:function(){ return feed; }, parseCard:function(c){ return c; },
+                           detectCaptcha:function(){ return captcha; } };
+
+    reset();
+    const seen = [];
+    let r = await SC.scanAll(async function(p){ seen.push(p.cards); });
+    eq("REGRESSION every batch of the feed reaches the queue, not only the first",
+       (DB.queue||[]).length, BATCH*MAXB);
+    eq("the report describes the whole feed", r.total, BATCH*MAXB);
+    eq("each job is counted once across batches", r.added, BATCH*MAXB);
+    ok("it kept pulling until the feed stopped growing", r.batches >= MAXB, r.batches);
+    ok("progress was reported per batch, with a growing card count",
+       seen.length >= MAXB-1 && seen[0] < seen[seen.length-1], seen);
+    eq("a completed sweep is not flagged as interrupted", r.stopped, "");
+    ok("it did not run away past the cap", r.batches <= SC.MAX_SCAN_BATCHES, r.batches);
+
+    reset();
+    let calls = 0;
+    r = await SC.scanAll(null, async function(){ calls++; return calls <= 1; });
+    eq("a second click stops the sweep between batches", r.stopped, "stopped");
+    ok("it stopped early instead of walking the whole feed",
+       (DB.queue||[]).length < BATCH*MAXB, (DB.queue||[]).length);
+
+    reset();
+    captcha = true;
+    r = await SC.scanAll();
+    eq("a captcha stops the sweep instead of hammering the site", r.stopped, "captcha");
+    eq("only what was already rendered got queued", (DB.queue||[]).length, BATCH);
+    captcha = false;
+
+    reset();
+    batches = 1; render();
+    r = await SC.scanAll(null, async function(){ return true; });
+    eq("a feed that never grows still reports its one batch", r.total, BATCH*MAXB);
+  })();
+
+  console.log("\n[14b] the sweep is wired into the panel and shares one scroll helper");
+  (function(){
+    const sc = fs.readFileSync(D+"src/content/scanner.js","utf8");
+    const ex = fs.readFileSync(D+"src/content/executor.js","utf8");
+    const pl = fs.readFileSync(D+"src/content/panel.js","utf8");
+    ok("scanner owns the scroll helper", /function loadMoreCards/.test(sc));
+    ok("executor reuses it rather than keeping a copy",
+       ex.indexOf("B.scanner.loadMoreCards()")>=0 && !/function loadMoreCards/.test(ex));
+    ok("the scroll helper moves the last card, not the window",
+       /scrollIntoView\(\{ block: "end"/.test(sc));
+    ok("panel button sweeps the feed", pl.indexOf("scanAll")>=0);
+    ok("panel button can be clicked again to stop", pl.indexOf("停止扫描")>=0);
+    ok("the old page-only label is gone", pl.indexOf("扫描本页")===-1);
+  })();
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

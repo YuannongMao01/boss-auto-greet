@@ -116,14 +116,6 @@
     return null;
   }
 
-  // Scroll the feed by one batch. The last card is scrolled into view rather than moving the
-  // window, so this also works when the list lives inside its own scrolling container.
-  function loadMoreCards() {
-    const cards = B.dom.getAllCards();
-    if (cards.length) cards[cards.length - 1].scrollIntoView({ block: "end", behavior: "smooth" });
-    else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
-  }
-
   // The result list is an infinite-scroll feed. Returning from a chat reloads it with only the
   // first batch rendered, so a queued job further down has no card yet and would look missing.
   // Pull batches in until one of the pending jobs is on screen or the feed stops growing.
@@ -136,7 +128,7 @@
       if (shouldContinue && !(await shouldContinue())) return "stopped";
       const before = B.dom.getAllCards().length;
       if (onProgress) await onProgress(before, n + 1);
-      loadMoreCards();
+      B.scanner.loadMoreCards();
       const grew = await waitFor(function () {
         return B.dom.getAllCards().length > before ? true : null;
       }, 2500);
