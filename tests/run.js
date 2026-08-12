@@ -531,6 +531,55 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
     ok("the old page-only label is gone", pl.indexOf("扫描本页")===-1);
   })();
 
+  console.log("\n[15] internship searches pin Boss's 在校生 experience filter");
+  (function(){
+    const C=B.cities, U=C.buildSearchUrl, SM=C.searchMatchesAt;
+    const intern={ jobType:"intern", searchQuery:"实习生", cities:["深圳"] };
+    const full={ jobType:"fulltime", searchQuery:"算法", cities:["深圳"] };
+
+    ok("an internship search carries experience=108", U(intern).indexOf("experience=108")>=0, U(intern));
+    ok("it still carries the query and the city",
+       U(intern).indexOf("query=")>=0 && U(intern).indexOf("city=101280600")>=0, U(intern));
+    ok("a full time search adds nothing extra", U(full).indexOf("experience")===-1, U(full));
+    ok("a config without jobType behaves like full time",
+       U({ searchQuery:"算法", cities:["深圳"] }).indexOf("experience")===-1);
+
+    const q="?query="+encodeURIComponent("实习生")+"&city=101280600";
+    ok("REGRESSION same words but no 在校生 filter is NOT a match",
+       SM(intern, "/web/geek/jobs", q)===false);
+    ok("with the filter it matches", SM(intern, "/web/geek/jobs", q+"&experience=108")===true);
+    ok("在校生 picked alongside 应届生 still matches",
+       SM(intern, "/web/geek/jobs", q+"&experience=108,102")===true);
+    ok("a different experience value alone does not count",
+       SM(intern, "/web/geek/jobs", q+"&experience=102")===false);
+    ok("108 inside another number is not mistaken for it",
+       SM(intern, "/web/geek/jobs", q+"&experience=1108")===false);
+    ok("the user's other site filters are still preserved",
+       SM(intern, "/web/geek/jobs", q+"&experience=108&degree=203")===true);
+
+    const qf="?query="+encodeURIComponent("算法")+"&city=101280600";
+    ok("a full time search does not care about the experience filter",
+       SM(full, "/web/geek/jobs", qf)===true);
+    ok("a full time search is fine with the filter present too",
+       SM(full, "/web/geek/jobs", qf+"&experience=108")===true);
+
+    ok("hasStudentExperience reads the parameter directly",
+       C.hasStudentExperience("?experience=108")===true && C.hasStudentExperience("?experience=101")===false &&
+       C.hasStudentExperience("")===false);
+    eq("the code is stated once, not scattered", C.EXP_STUDENT, "108");
+  })();
+  ok("DEFAULT_CONFIG declares jobType", "jobType" in B.store.DEFAULT_CONFIG);
+  eq("it defaults to full time so nothing changes until chosen", B.store.DEFAULT_CONFIG.jobType, "fulltime");
+  ok("popup.js saves jobType",
+     fs.readFileSync(D+"src/popup/popup.js","utf8").indexOf("jobType")>=0);
+  ok("popup.html has a control for it",
+     fs.readFileSync(D+"src/popup/popup.html","utf8").indexOf('id="jobType"')>=0);
+  ok("the job type control sits above the search term",
+     (function(){ const t=fs.readFileSync(D+"src/popup/popup.html","utf8");
+       return t.indexOf('id="jobType"') < t.indexOf('id="searchQuery"'); })());
+  ok("the panel explains a missing 在校生 filter instead of just reporting a mismatch",
+     fs.readFileSync(D+"src/content/panel.js","utf8").indexOf("hasStudentExperience")>=0);
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

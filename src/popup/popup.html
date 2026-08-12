@@ -8,6 +8,14 @@
   <h1>Boss Auto Greet · 设置</h1>
 
   <div class="field">
+    <label>岗位类型</label>
+    <select id="jobType">
+      <option value="fulltime">全职</option>
+      <option value="intern">实习</option>
+    </select>
+    <div class="tip">选「实习」会在搜索链接里带上 Boss 的「工作经验 → 在校生」筛选（<code>experience=108</code>）。不勾这个的话，即使搜“实习生”也会返回大量全职岗。选「全职」就是普通搜索，不加任何额外条件。</div>
+  </div>
+  <div class="field">
     <label>搜索词</label>
     <input id="searchQuery" placeholder="如：算法实习" />
     <div class="tip">只填一个，直接交给 Boss 搜索框。Boss 的搜索是语义匹配，填“算法实习”就能搜到实习岗。这一项唯一决定搜什么。</div>

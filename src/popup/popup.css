@@ -8,6 +8,10 @@ h1 { font-size: 15px; margin: 0 0 12px; }
 /* A field title is a heading: bold and dark. Its explanation belongs in .tip, which stays
    plain and grey, so nothing inside a note is emphasised. */
 .field label { display: block; font-size: 12px; font-weight: 600; color: #1a2744; margin-bottom: 4px; }
+.field select {
+  width: 100%; box-sizing: border-box; padding: 6px 8px;
+  border: 1px solid #cdd5df; border-radius: 6px; font-size: 13px; background: #fff; color: #1a2744;
+}
 .field input[type="text"], .field input:not([type]), .field input[type="number"], .field textarea, .field input[type="time"] {
   width: 100%; box-sizing: border-box; padding: 6px 8px;
   border: 1px solid #cdd5df; border-radius: 6px; font-size: 13px; background: #fff;

@@ -2,6 +2,7 @@
 window.BAG = window.BAG || {};
 (function () {
   const DEFAULT_CONFIG = {
+    jobType: "fulltime",   // "intern" also pins Boss's 在校生 experience filter, experience=108
     searchQuery: "",       // single term handed to the Boss search box
     titleIncludeAny: [],   // hard gate on the job title, kept when the title contains ANY of them
     includeAny: [],        // topic keywords, a result is kept when it contains ANY of them

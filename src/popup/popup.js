@@ -1,6 +1,6 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
-  searchQuery: "", titleIncludeAny: [], includeAny: [], excludeKeywords: [], cities: [], greeting: "",
+  jobType: "fulltime", searchQuery: "", titleIncludeAny: [], includeAny: [], excludeKeywords: [], cities: [], greeting: "",
   excludeCompanies: [], blockAgency: false, requireCompanyLogo: false,
   dailyCap: 40, intervalSec: 20
 };
@@ -15,6 +15,7 @@ function fmtList(a) { return (a || []).join(", "); }
 async function load() {
   const o = await get("config");
   const c = Object.assign({}, DEFAULT_CONFIG, o.config || {});
+  document.getElementById("jobType").value = c.jobType || "fulltime";
   document.getElementById("searchQuery").value = c.searchQuery || "";
   document.getElementById("titleIncludeAny").value = fmtList(c.titleIncludeAny);
   document.getElementById("includeAny").value = fmtList(c.includeAny);
@@ -49,6 +50,7 @@ async function load() {
 async function save() {
   const gi = function (id) { return parseInt(document.getElementById(id).value, 10); };
   const config = {
+    jobType: document.getElementById("jobType").value,
     searchQuery: document.getElementById("searchQuery").value.trim(),
     titleIncludeAny: parseList(document.getElementById("titleIncludeAny").value),
     includeAny: parseList(document.getElementById("includeAny").value),

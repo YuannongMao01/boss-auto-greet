@@ -57,9 +57,15 @@
     // Standing notice when the page on screen is not the search the config describes
     const hint = root.querySelector(".bag-hint");
     if (config.searchQuery && state !== "running" && !B.cities.searchMatches(config)) {
-      hint.textContent = B.cities.isSearchPage()
-        ? "本页搜的是「" + B.cities.currentQuery() + "」，设置里是「" + config.searchQuery + "」 → 点「开始打招呼」会先跳转"
-        : "当前不在搜索页 → 点「开始打招呼」会跳到「" + config.searchQuery + "」的搜索页";
+      const sameQuery = B.cities.currentQuery() === config.searchQuery;
+      if (!B.cities.isSearchPage()) {
+        hint.textContent = "当前不在搜索页 → 点「开始打招呼」会跳到「" + config.searchQuery + "」的搜索页";
+      } else if (config.jobType === "intern" && sameQuery && !B.cities.hasStudentExperience(location.search)) {
+        // Same words, so say plainly what is actually missing instead of just "not a match"
+        hint.textContent = "搜索词一致，但本页没开「工作经验 → 在校生」这个筛选，搜出来的会混进全职岗 → 点「开始打招呼」会带上它重新搜";
+      } else {
+        hint.textContent = "本页搜的是「" + B.cities.currentQuery() + "」，设置里是「" + config.searchQuery + "」 → 点「开始打招呼」会先跳转";
+      }
       hint.style.display = "block";
     } else {
       hint.style.display = "none";

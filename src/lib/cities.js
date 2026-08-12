@@ -11,6 +11,17 @@ window.BAG = window.BAG || {};
     "大连": "101070200", "沈阳": "101070100", "昆明": "101290100", "珠海": "101280700"
   };
 
+  // Boss's 工作经验 filter carries the 在校生 option as experience=108. Without it a search for
+  // 实习生 still returns plenty of full time posts, so an internship search has to pin it down.
+  // The parameter accepts several comma separated values, hence a containment test rather than
+  // an equality test: the user may have picked 应届生 alongside it in the site's own UI.
+  const EXP_STUDENT = "108";
+
+  function hasStudentExperience(search) {
+    const raw = new URLSearchParams(search).get("experience") || "";
+    return raw.split(",").indexOf(EXP_STUDENT) !== -1;
+  }
+
   function cityCode(name) {
     if (!name) return null;
     for (const k in CITY_CODE) {
@@ -25,6 +36,7 @@ window.BAG = window.BAG || {};
     const code = (config.cities && config.cities[0]) ? cityCode(config.cities[0]) : null;
     let url = "https://www.zhipin.com/web/geek/jobs?query=" + encodeURIComponent(kw);
     if (code) url += "&city=" + code;
+    if (config.jobType === "intern") url += "&experience=" + EXP_STUDENT;
     return url;
   }
 
@@ -43,6 +55,8 @@ window.BAG = window.BAG || {};
     if ((p.get("query") || "") !== (config.searchQuery || "")) return false;
     const wanted = (config.cities && config.cities[0]) ? cityCode(config.cities[0]) : null;
     if (wanted && (p.get("city") || "") !== wanted) return false;
+    // For an internship search the 在校生 filter is part of the search itself, not an optional extra
+    if (config.jobType === "intern" && !hasStudentExperience(search)) return false;
     return true;
   }
   function searchMatches(config) { return searchMatchesAt(config, location.pathname, location.search); }
@@ -51,6 +65,7 @@ window.BAG = window.BAG || {};
   window.BAG.cities = {
     CITY_CODE: CITY_CODE, cityCode: cityCode, buildSearchUrl: buildSearchUrl,
     isSearchPage: isSearchPage, isSearchPageAt: isSearchPageAt,
-    searchMatches: searchMatches, searchMatchesAt: searchMatchesAt, currentQuery: currentQuery
+    searchMatches: searchMatches, searchMatchesAt: searchMatchesAt, currentQuery: currentQuery,
+    hasStudentExperience: hasStudentExperience, EXP_STUDENT: EXP_STUDENT
   };
 })();
