@@ -7,13 +7,10 @@ window.BAG = window.BAG || {};
     excludeKeywords: [],   // blacklist, a single hit rejects the job
     cities: [],            // accepted cities, matched against the job location
     minSalary: 0,          // minimum salary in K, 0 means no limit
-    todayOnly: false,      // unused, Boss cards carry no publish time
     greeting: "",          // custom opener, empty means rely on the account default
     dailyCap: 40,          // max greetings per day
     intervalMin: 8,        // minimum gap between greetings, seconds
-    intervalMax: 30,       // maximum gap between greetings, seconds
-    workStart: "09:00",    // start of the allowed time window
-    workEnd: "20:00"       // end of the allowed time window
+    intervalMax: 30        // maximum gap between greetings, seconds
   };
 
   function get(keys) { return new Promise(function (r) { chrome.storage.local.get(keys, r); }); }

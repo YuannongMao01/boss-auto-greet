@@ -145,6 +145,21 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
   ok("panel version is v1", /BAG_VERSION = "v1"/.test(pan));
   ok("panel shows top reason", pan.indexOf("主要原因")>0);
 
+  console.log("\n[9] removed settings stay removed, popup ids stay in sync");
+  const cfgKeys = Object.keys(B.store.DEFAULT_CONFIG);
+  ok("DEFAULT_CONFIG has no work-hours fields",
+     cfgKeys.indexOf("workStart")===-1 && cfgKeys.indexOf("workEnd")===-1, cfgKeys);
+  ok("DEFAULT_CONFIG has no dead todayOnly field", cfgKeys.indexOf("todayOnly")===-1, cfgKeys);
+  ["src/content/executor.js","src/popup/popup.js","src/popup/popup.html","src/lib/store.js"].forEach(function(f){
+    ok(f+" free of work-hours references",
+       !/workStart|workEnd|inWorkHours|todayOnly/.test(fs.readFileSync(D+f,"utf8")));
+  });
+  const ph=fs.readFileSync(D+"src/popup/popup.html","utf8");
+  const pjs=fs.readFileSync(D+"src/popup/popup.js","utf8");
+  const ids=[...pjs.matchAll(/getElementById\("([^"]+)"\)/g)].map(function(m){return m[1];});
+  const missing=[...new Set(ids)].filter(function(id){ return ph.indexOf('id="'+id+'"')===-1; });
+  ok("every id popup.js touches exists in popup.html", missing.length===0, missing);
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();

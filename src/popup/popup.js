@@ -1,7 +1,7 @@
 // Popup settings logic: reads and writes the config object in chrome.storage.local.
 const DEFAULT_CONFIG = {
   searchQuery: "", mustInclude: [], excludeKeywords: [], cities: [], minSalary: 0, greeting: "", autoScan: false,
-  dailyCap: 40, intervalMin: 8, intervalMax: 30, workStart: "09:00", workEnd: "20:00"
+  dailyCap: 40, intervalMin: 8, intervalMax: 30
 };
 
 function get(keys) { return new Promise(function (r) { chrome.storage.local.get(keys, r); }); }
@@ -22,8 +22,6 @@ async function load() {
   document.getElementById("dailyCap").value = c.dailyCap;
   document.getElementById("intervalMin").value = c.intervalMin;
   document.getElementById("intervalMax").value = c.intervalMax;
-  document.getElementById("workStart").value = c.workStart;
-  document.getElementById("workEnd").value = c.workEnd;
   document.getElementById("greeting").value = c.greeting || "";
   document.getElementById("autoScan").checked = !!c.autoScan;
 
@@ -60,8 +58,6 @@ async function save() {
     dailyCap: Math.max(1, gi("dailyCap") || 40),
     intervalMin: iMin,
     intervalMax: iMax,
-    workStart: document.getElementById("workStart").value || "09:00",
-    workEnd: document.getElementById("workEnd").value || "20:00",
     greeting: document.getElementById("greeting").value.trim(),
     autoScan: document.getElementById("autoScan").checked
   };

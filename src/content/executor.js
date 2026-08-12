@@ -15,14 +15,6 @@
     return "other";
   }
 
-  function inWorkHours(config) {
-    const now = new Date();
-    const cur = now.getHours() * 60 + now.getMinutes();
-    const s = config.workStart.split(":").map(Number);
-    const e = config.workEnd.split(":").map(Number);
-    return cur >= s[0] * 60 + s[1] && cur <= e[0] * 60 + e[1];
-  }
-
   function realClick(el) {
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     const rect = el.getBoundingClientRect();
@@ -95,7 +87,6 @@
   async function guardOk() {
     if ((await B.store.getRunState()) !== "running") return "stopped";
     const cfg = await B.store.getConfig();
-    if (!inWorkHours(cfg)) { await B.store.addLog({ status: "paused", reason: "非工作时段" }); await setStatus("非工作时段，已暂停"); await setPaused(); return "paused"; }
     const dc = await B.store.getDailyCount();
     if (dc.count >= cfg.dailyCap) {
       await B.store.addLog({ status: "paused", reason: "达每日上限" });
