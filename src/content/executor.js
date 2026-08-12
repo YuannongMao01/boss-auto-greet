@@ -106,6 +106,50 @@
     return null;
   }
 
+  const MAX_LOAD_MORE = 40;   // safety cap on how many extra batches we will pull in
+
+  function pickVisible(pendings) {
+    for (let i = 0; i < pendings.length; i++) {
+      const c = findCard(pendings[i].jobId);
+      if (c) return { job: pendings[i], card: c };
+    }
+    return null;
+  }
+
+  // Scroll the feed by one batch. The last card is scrolled into view rather than moving the
+  // window, so this also works when the list lives inside its own scrolling container.
+  function loadMoreCards() {
+    const cards = B.dom.getAllCards();
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ block: "end", behavior: "smooth" });
+    else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  }
+
+  // The result list is an infinite-scroll feed. Returning from a chat reloads it with only the
+  // first batch rendered, so a queued job further down has no card yet and would look missing.
+  // Pull batches in until one of the pending jobs is on screen or the feed stops growing.
+  // shouldContinue lets a long hunt be interrupted, so pressing pause takes effect between batches
+  // instead of after the whole feed has been walked.
+  async function findPendingCard(pendings, onProgress, shouldContinue) {
+    let hit = pickVisible(pendings);
+    if (hit) return hit;
+    for (let n = 0; n < MAX_LOAD_MORE; n++) {
+      if (shouldContinue && !(await shouldContinue())) return "stopped";
+      const before = B.dom.getAllCards().length;
+      if (onProgress) await onProgress(before, n + 1);
+      loadMoreCards();
+      const grew = await waitFor(function () {
+        return B.dom.getAllCards().length > before ? true : null;
+      }, 2500);
+      if (grew === "captcha") return "captcha";
+      if (!grew) return null;                   // reached the bottom of the feed
+      await B.scanner.scanOnce();               // batches revealed on the way also join the queue
+      const queue = await B.store.getQueue();
+      hit = pickVisible(queue.filter(function (q) { return q.approved && q.status === "pending"; }));
+      if (hit) return hit;
+    }
+    return null;
+  }
+
   async function resumeToSearch() {
     const cfg = await B.store.getConfig();
     if (cfg.searchQuery) location.href = B.cities.buildSearchUrl(cfg);
@@ -139,18 +183,22 @@
         return;
       }
 
-      // Only act on jobs whose card is actually present. A missing card stays pending rather than
-      // being treated as a permanent failure.
-      let next = null, card = null;
-      for (let i = 0; i < pendings.length; i++) {
-        const c = findCard(pendings[i].jobId);
-        if (c) { next = pendings[i]; card = c; break; }
-      }
-      if (!next) {
-        await setStatus("本页找不到这 " + pendings.length + " 个待办岗位的卡片（可能属于别的搜索词），已暂停。切到对应搜索页再点开始，或清空队列");
+      // Only act on jobs whose card is actually present, loading more of the feed when needed.
+      // A missing card stays pending rather than being treated as a permanent failure.
+      const found = await findPendingCard(pendings, async function (loaded, n) {
+        await setStatus("向下加载更多岗位（已加载 " + loaded + " 个，第 " + n + " 次）…");
+      }, async function () {
+        return (await B.store.getRunState()) === "running";
+      });
+      if (found === "stopped") return;
+      if (found === "captcha") return handleCaptcha(null);
+      if (!found) {
+        const left = (await B.store.getQueue()).filter(function (q) { return q.approved && q.status === "pending"; }).length;
+        await setStatus("已滚到列表底部，仍未找到这 " + left + " 个待办岗位的卡片，可能属于别的搜索词或已下架，已暂停 → 点「清空队列」再「扫描本页」");
         await setPaused();
         return;
       }
+      const next = found.job, card = found.card;
 
       await B.store.setTask({ active: true, jobId: next.jobId, name: next.name, returnUrl: location.href });
       const cfg = await B.store.getConfig();
@@ -243,5 +291,5 @@
   async function pause() { await B.store.setRunState("paused"); chrome.runtime.sendMessage({ type: "state-updated", state: "paused" }); }
   async function stop() { await B.store.setRunState("idle"); await B.store.setTask({ active: false }); chrome.runtime.sendMessage({ type: "state-updated", state: "idle" }); }
 
-  B.executor = { run: run, pause: pause, stop: stop, step: step };
+  B.executor = { run: run, pause: pause, stop: stop, step: step, findPendingCard: findPendingCard };
 })();

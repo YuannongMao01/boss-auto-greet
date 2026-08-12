@@ -195,6 +195,72 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   ok("list header hides while collapsed", getComputedStyle(lh).display === "none", getComputedStyle(lh).display);
   tog.click(); await sleep(60);
 
+  // H. Infinite-scroll feed: a queued job that has not been rendered yet must still be reached.
+  // Reproduces the real failure: after returning from a chat only the first batch exists.
+  var feed = document.createElement("div");
+  document.body.appendChild(feed);
+  var BATCH = 5, batches = 1, maxBatches = 6, scanCalls = 0;
+  function renderFeed() {
+    feed.innerHTML = "";
+    for (var i = 0; i < batches * BATCH; i++) {
+      var c = document.createElement("div");
+      c.className = "fake-card";
+      c.setAttribute("data-jid", "job" + i);
+      feed.appendChild(c);
+    }
+  }
+  renderFeed();
+  var origSIV = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function () {
+    if (this.className === "fake-card" && batches < maxBatches) { batches++; renderFeed(); }
+  };
+  var origCards = window.BAG.dom.getAllCards, origXid = window.BAG.dom.extractJobId, origScan = window.BAG.scanner.scanOnce;
+  window.BAG.dom.getAllCards = function () { return [].slice.call(feed.querySelectorAll(".fake-card")); };
+  window.BAG.dom.extractJobId = function (c) { return c.getAttribute("data-jid"); };
+  window.BAG.scanner.scanOnce = async function () { scanCalls++; return {}; };
+
+  // H1: already rendered in the first batch, no scrolling needed
+  batches = 1; renderFeed(); scanCalls = 0;
+  __DB.queue = [{ jobId: "job2", name: "shallow job", status: "pending", approved: true }];
+  var r1 = await window.BAG.executor.findPendingCard(__DB.queue.slice());
+  ok("job in the first batch is found without loading more",
+     r1 && r1.job.jobId === "job2" && batches === 1, [r1 && r1.job.jobId, batches]);
+  ok("no extra scan when nothing had to be loaded", scanCalls === 0, scanCalls);
+
+  // H2: THE REPORTED FAILURE - job only exists after several more batches load
+  batches = 1; renderFeed(); scanCalls = 0;
+  __DB.queue = [{ jobId: "job17", name: "deep job", status: "pending", approved: true }];
+  var r2 = await window.BAG.executor.findPendingCard(__DB.queue.slice());
+  ok("REGRESSION: job below the fold is reached by loading more batches",
+     r2 && r2.job.jobId === "job17", r2 ? r2.job.jobId : null);
+  ok("it loaded exactly as many batches as needed", batches === 4, batches);
+  ok("each newly loaded batch is rescanned", scanCalls === 3, scanCalls);
+
+  // H3: genuinely absent job - stops at the bottom instead of looping forever
+  batches = 1; renderFeed(); scanCalls = 0;
+  __DB.queue = [{ jobId: "job999", name: "gone", status: "pending", approved: true }];
+  var t0 = Date.now();
+  var r3 = await window.BAG.executor.findPendingCard(__DB.queue.slice());
+  ok("absent job returns null rather than hanging", r3 === null, r3);
+  ok("it stopped at the bottom of the feed", batches === maxBatches, batches);
+  ok("it gave up promptly, no runaway loop", Date.now() - t0 < 9000, Date.now() - t0);
+
+  // H4: pressing pause interrupts a long hunt between batches
+  batches = 1; renderFeed(); scanCalls = 0;
+  __DB.queue = [{ jobId: "job999", name: "gone", status: "pending", approved: true }];
+  var calls = 0;
+  var r4 = await window.BAG.executor.findPendingCard(__DB.queue.slice(), null, async function () {
+    calls++; return calls <= 2;                 // allow two batches, then "pause"
+  });
+  ok("pause interrupts the hunt", r4 === "stopped", r4);
+  ok("it stopped early instead of walking the whole feed", batches < maxBatches, batches);
+
+  Element.prototype.scrollIntoView = origSIV;
+  window.BAG.dom.getAllCards = origCards;
+  window.BAG.dom.extractJobId = origXid;
+  window.BAG.scanner.scanOnce = origScan;
+  feed.remove();
+
   L.push(F ? ("###### " + F + " FAILED, " + P + " passed ######")
            : ("###### ALL " + P + " DOM TESTS PASSED ######"));
   document.getElementById("out").textContent = L.join("\n");
