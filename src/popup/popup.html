@@ -8,38 +8,41 @@
   <h1>Boss Auto Greet · 设置</h1>
 
   <div class="field">
-    <label>搜索词（只填一个，交给 Boss 搜索框）</label>
+    <label>搜索词</label>
     <input id="searchQuery" placeholder="如：算法实习" />
-    <div class="tip">Boss 的搜索是语义匹配，填“算法实习”就能搜到实习岗。这一项唯一决定搜什么。</div>
+    <div class="tip">只填一个，直接交给 Boss 搜索框。Boss 的搜索是语义匹配，填“算法实习”就能搜到实习岗。这一项唯一决定搜什么。</div>
   </div>
   <div class="field">
-    <label>主题词（可留空，逗号分隔，命中任一即保留）</label>
+    <label>主题词</label>
     <input id="includeAny" placeholder="如：数据, AI, Agent" />
-    <div class="tip">在搜索结果里逐字匹配卡片文字（标题/标签/公司/地点/薪资），几个词是“或”的关系，沾一个就留下。<b>词填得越多，结果越多</b>，所以觉得漏得厉害就多加几个同义词，例如再加“算法, 机器学习, 大模型, 推荐, NLP”。留空表示不额外过滤。</div>
+    <div class="tip">可留空，逗号分隔，命中任一即保留。在搜索结果里逐字匹配卡片文字（标题/标签/公司/地点/薪资），几个词是“或”的关系，沾一个就留下。词填得越多，结果越多，所以觉得漏得厉害就多加几个同义词，例如再加“算法, 机器学习, 大模型, 推荐, NLP”。</div>
   </div>
   <div class="field">
-    <label>屏蔽关键词（黑名单，命中即排除）</label>
+    <label>屏蔽关键词</label>
     <input id="excludeKeywords" placeholder="如：外包, 销售" />
+    <div class="tip">黑名单，逗号分隔，命中即排除，比对整张卡片。</div>
   </div>
   <div class="field check">
     <label><input id="blockAgency" type="checkbox" /> 屏蔽外包、劳务派遣、猎头、驻场岗位</label>
     <div class="tip">命中 外包/劳务/派遣/人力资源服务/人事代理/人才服务/众包/猎头/驻场 任一即排除，比对整张卡片。</div>
   </div>
   <div class="field">
-    <label>城市（location 包含任一，逗号分隔）</label>
+    <label>城市</label>
     <input id="cities" placeholder="如：杭州, 上海" />
+    <div class="tip">逗号分隔，岗位地点包含任一即保留。</div>
   </div>
   <div class="field">
-    <label>屏蔽公司（公司名命中即排除，逗号分隔）</label>
+    <label>屏蔽公司</label>
     <input id="excludeCompanies" placeholder="如：某某人力, 某某信息技术" />
-    <div class="tip">只比对<b>公司名</b>，不会因为岗位描述里提到这家公司而误杀。</div>
+    <div class="tip">逗号分隔，公司名命中即排除。只比对公司名，不会因为岗位描述里提到这家公司而误杀。</div>
   </div>
   <div class="field check">
-    <label><input id="requireCompanyLogo" type="checkbox" /> 只投上传过公司 logo 的公司（跳过还在用 Boss 默认图的）</label>
-    <div class="tip">默认图是靠<b>同一张图被本页多家不同公司共用</b>认出来的，不写死图片地址；本页读不到 logo 时不会拦任何岗位。判定结果可以点面板的「调试」核对。</div>
+    <label><input id="requireCompanyLogo" type="checkbox" /> 只投有 logo 的公司</label>
+    <div class="tip">跳过还在用 Boss 默认图的公司。默认图是靠同一张图被本页多家不同公司共用认出来的，不写死图片地址；本页读不到 logo 时不会拦任何岗位。判定结果可以点面板的「调试」核对。</div>
   </div>
   <div class="field check">
-    <label><input id="autoScan" type="checkbox" /> 自动监控：进入 Boss 首页/推荐页自动跳到搜索页（需填搜索词+城市）</label>
+    <label><input id="autoScan" type="checkbox" /> 自动监控</label>
+    <div class="tip">进入 Boss 首页或推荐页时自动跳到搜索页，需要先填搜索词和城市。</div>
   </div>
   <div class="row">
     <div class="field half">
@@ -55,8 +58,9 @@
     <div class="tip">实际等待会在这个数字上下浮动 30%（填 20 秒就是 14~26 秒之间随机）。固定节奏太像机器，这层抖动一直在。</div>
   </div>
   <div class="field">
-    <label>打招呼语（留空则用 Boss 账号默认招呼语）</label>
+    <label>打招呼语</label>
     <textarea id="greeting" rows="3" placeholder="如：您好，我有 X 年相关经验，对贵司这个岗位很感兴趣，方便沟通一下吗？"></textarea>
+    <div class="tip">留空则用 Boss 账号里设的默认招呼语。</div>
   </div>
 
   <button id="save">保存设置</button>

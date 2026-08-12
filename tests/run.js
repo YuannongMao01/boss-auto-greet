@@ -396,6 +396,30 @@ console.log("\n[5] store.getConfig legacy migration (keywords / mustInclude -> s
        return t.indexOf('id="blockAgency"') > t.indexOf('id="excludeKeywords"') &&
               t.indexOf('id="blockAgency"') < t.indexOf('id="cities"'); })());
 
+  console.log("\n[12] popup typography: a field title is a heading, its note is not");
+  (function(){
+    const css=fs.readFileSync(D+"src/popup/popup.css","utf8");
+    const html=fs.readFileSync(D+"src/popup/popup.html","utf8");
+    ok("field titles are bold", /\.field label \{[^}]*font-weight: 600/.test(css));
+    ok("checkbox titles are bold too", /\.check label \{[^}]*font-weight: 600/.test(css));
+    ok("notes are explicitly normal weight", /\.tip \{[^}]*font-weight: 400/.test(css));
+    ok("bold inside a note is neutralised", /\.tip b[^{]*\{[^}]*font-weight: 400/.test(css));
+    ok("no note carries bold markup", html.indexOf("<b>")===-1);
+    // An explanation in brackets would be bolded along with the title, so it belongs in the note
+    const labels=(html.match(/<label>[\s\S]*?<\/label>/g)||[]).map(function(t){
+      return t.replace(/<[^>]+>/g,"").trim();
+    });
+    ok("every field has a title", labels.length>=8, labels.length);
+    // A unit such as 活动间隔（秒）is part of the title. Anything longer is an explanation.
+    const withBrackets=labels.filter(function(t){
+      const m=t.match(/[（(]([^）)]*)[）)]/);
+      return !!m && m[1].length>3;
+    });
+    ok("no title carries a bracketed explanation", withBrackets.length===0, withBrackets);
+    const longTitles=labels.filter(function(t){ return t.length>18; });
+    ok("titles stay short enough to read as headings", longTitles.length===0, longTitles);
+  })();
+
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
 })();
