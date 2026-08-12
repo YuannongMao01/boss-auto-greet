@@ -28,12 +28,29 @@ window.BAG = window.BAG || {};
     return url;
   }
 
-  function isSearchPage() {
-    const p = location.pathname;
-    if (p === "/web/geek/job") return true;                       // legacy singular search path
-    if (p === "/web/geek/jobs") return new URLSearchParams(location.search).has("query"); // plural path is only a search when a query is present
+  function isSearchPageAt(pathname, search) {
+    if (pathname === "/web/geek/job") return true;                // legacy singular search path
+    if (pathname === "/web/geek/jobs") return new URLSearchParams(search).has("query"); // plural path is only a search when a query is present
     return false;                                                 // /web/geek/jobs without a query is the recommendation feed
   }
+  function isSearchPage() { return isSearchPageAt(location.pathname, location.search); }
 
-  window.BAG.cities = { CITY_CODE: CITY_CODE, cityCode: cityCode, buildSearchUrl: buildSearchUrl, isSearchPage: isSearchPage };
+  // Is the search shown by this URL the one the config asks for? Only the query and the city are
+  // compared, so any extra filters the user applied through the site's own UI are preserved.
+  function searchMatchesAt(config, pathname, search) {
+    if (!isSearchPageAt(pathname, search)) return false;
+    const p = new URLSearchParams(search);
+    if ((p.get("query") || "") !== (config.searchQuery || "")) return false;
+    const wanted = (config.cities && config.cities[0]) ? cityCode(config.cities[0]) : null;
+    if (wanted && (p.get("city") || "") !== wanted) return false;
+    return true;
+  }
+  function searchMatches(config) { return searchMatchesAt(config, location.pathname, location.search); }
+  function currentQuery() { return new URLSearchParams(location.search).get("query") || ""; }
+
+  window.BAG.cities = {
+    CITY_CODE: CITY_CODE, cityCode: cityCode, buildSearchUrl: buildSearchUrl,
+    isSearchPage: isSearchPage, isSearchPageAt: isSearchPageAt,
+    searchMatches: searchMatches, searchMatchesAt: searchMatchesAt, currentQuery: currentQuery
+  };
 })();

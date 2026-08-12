@@ -38,6 +38,17 @@
     const pending = queue.filter(function (q) { return q.status === "pending"; }).length;
     stat.textContent = "状态: " + stateLabel(state) + " · 今日 " + dc.count + "/" + config.dailyCap + " · 待处理 " + pending;
 
+    // Standing notice when the page on screen is not the search the config describes
+    const hint = root.querySelector(".bag-hint");
+    if (config.searchQuery && state !== "running" && !B.cities.searchMatches(config)) {
+      hint.textContent = B.cities.isSearchPage()
+        ? "本页搜的是「" + B.cities.currentQuery() + "」，设置里是「" + config.searchQuery + "」 → 点「开始打招呼」会先跳转"
+        : "当前不在搜索页 → 点「开始打招呼」会跳到「" + config.searchQuery + "」的搜索页";
+      hint.style.display = "block";
+    } else {
+      hint.style.display = "none";
+    }
+
     const main = root.querySelector(".bag-main");
     if (state === "running") { main.textContent = "暂停"; main.classList.add("bag-running"); }
     else { main.textContent = "开始打招呼"; main.classList.remove("bag-running"); }
@@ -73,9 +84,11 @@
     if (state === "running") { await B.executor.pause(); showMsg("已暂停（当前动作完成后停下）"); render(); return; }
     const cfg = await B.store.getConfig();
     if (!cfg.searchQuery) { showMsg("请先点扩展图标，在「搜索词」里填岗位关键词"); return; }
-    if (!B.cities.isSearchPage()) {
+    // Not merely "is this a search page" but "is this the search the config asks for", so editing
+    // the search term and pressing start navigates instead of silently reusing the old results.
+    if (!B.cities.searchMatches(cfg)) {
       await B.store.setRunState("running");
-      showMsg("正在打开搜索页并开始…");
+      showMsg("正在按最新设置打开搜索页…");
       location.href = B.cities.buildSearchUrl(cfg); // init() resumes step() once the page has loaded
       return;
     }
@@ -235,6 +248,10 @@
 
     // Status row
     root.appendChild(el("div", "bag-stat"));
+
+    const hint = el("div", "bag-hint");
+    hint.style.display = "none";
+    root.appendChild(hint);
 
     const msg = el("div", "bag-msg");
     msg.style.display = "none";

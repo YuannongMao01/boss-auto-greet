@@ -75,6 +75,24 @@ ok("recommend page -> false", B.cities.isSearchPage()===false);
 at("/web/geek/chat","");
 ok("chat page -> false", B.cities.isSearchPage()===false);
 
+console.log("\n[4b] cities.searchMatchesAt decides whether the page shows the configured search");
+const SM = B.cities.searchMatchesAt;
+const cfgA = { searchQuery: "算法实习", cities: ["上海"] };
+ok("exact query + city -> match",
+   SM(cfgA, "/web/geek/jobs", "?query=" + encodeURIComponent("算法实习") + "&city=101020100") === true);
+ok("THE REPORTED BUG: stale query on a real search page -> no match",
+   SM(cfgA, "/web/geek/jobs", "?query=" + encodeURIComponent("算法") + "&city=101020100") === false);
+ok("wrong city -> no match",
+   SM(cfgA, "/web/geek/jobs", "?query=" + encodeURIComponent("算法实习") + "&city=101280600") === false);
+ok("recommendation feed -> no match", SM(cfgA, "/web/geek/jobs", "") === false);
+ok("chat page -> no match", SM(cfgA, "/web/geek/chat", "") === false);
+ok("extra site filters are preserved, still a match",
+   SM(cfgA, "/web/geek/jobs", "?query=" + encodeURIComponent("算法实习") + "&city=101020100&degree=203&experience=101") === true);
+ok("no city configured -> city param ignored",
+   SM({ searchQuery: "算法实习", cities: [] }, "/web/geek/jobs", "?query=" + encodeURIComponent("算法实习") + "&city=101280600") === true);
+ok("empty search term never matches a real query",
+   SM({ searchQuery: "", cities: [] }, "/web/geek/jobs", "?query=" + encodeURIComponent("算法")) === false);
+
 console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + mustInclude)");
 (async function(){
   DB={ config:{ keywords:["算法","实习"], matchMode:"and", cities:["上海"], greeting:"hi" } };

@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="../src/content/panel.css">
 <script>
 // Minimal chrome.* stub, enough for store.js and panel.js
-var __DB = {};
+var __DB = { config: { searchQuery: "算法实习", mustInclude: [], cities: ["上海"], autoScan: false } };
 window.chrome = {
   storage: {
     local: {
@@ -137,6 +137,18 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   ok("toggle mousedown does not start a drag",
      Math.abs(root.getBoundingClientRect().left - r5.left) < 2,
      root.getBoundingClientRect().left - r5.left);
+
+  // F. Standing notice when this page is not the configured search
+  var hint = root.querySelector(".bag-hint");
+  ok("hint element exists", !!hint);
+  ok("hint is shown because this file is not the configured search page",
+     getComputedStyle(hint).display === "block", getComputedStyle(hint).display);
+  ok("hint names the configured search term", hint.textContent.indexOf("算法实习") >= 0, hint.textContent);
+  tog.click();
+  await sleep(60);
+  ok("hint also hides while collapsed", getComputedStyle(hint).display === "none", getComputedStyle(hint).display);
+  tog.click();
+  await sleep(60);
 
   L.push(F ? ("###### " + F + " FAILED, " + P + " passed ######")
            : ("###### ALL " + P + " DOM TESTS PASSED ######"));
