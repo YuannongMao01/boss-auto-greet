@@ -154,6 +154,43 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
   r=await ctx.window.BAG.scanner.scanOnce();
   eq("after clearing queue: greeted j1 stays out, 2 re-added", [r.added,r.greeted,r.filtered], [2,1,1]);
 
+  console.log("\n[7b] unavailable marking is reversible when the feed reshuffles");
+  vm.runInContext(fs.readFileSync(D+"src/content/executor.js","utf8"), ctx, {filename:"executor.js"});
+  const EX = ctx.window.BAG.executor;
+
+  // three pending + one greeted; the executor writes off what the feed no longer shows
+  DB = { config:{ searchQuery:"算法", mustInclude:[], cities:["上海"] },
+         queue:[{jobId:"j1",name:"a",status:"pending",approved:true},
+                {jobId:"j2",name:"b",status:"pending",approved:true},
+                {jobId:"j3",name:"c",status:"pending",approved:false},
+                {jobId:"j4",name:"d",status:"greeted",approved:true}] };
+  let marked = await EX.markUnavailable();
+  eq("only approved+pending rows are written off", marked, 2);
+  eq("statuses after write-off",
+     DB.queue.map(function(x){return x.jobId+":"+x.status;}),
+     ["j1:unavailable","j2:unavailable","j3:pending","j4:greeted"]);
+
+  // the same job shows up on a later load -> scanner puts it back in play
+  r = await ctx.window.BAG.scanner.scanOnce();   // cards j1..j4 exist in the stub
+  const back = DB.queue.filter(function(x){ return x.jobId==="j1"; })[0];
+  eq("reappearing job is revived to pending", back.status, "pending");
+  eq("revived jobs are re-approved", back.approved, true);
+  ok("scan reports how many it revived", r.revived >= 1, r.revived);
+  ok("revived jobs are not double counted as new", r.added === 0, r.added);
+
+  // a job still absent from the feed stays written off
+  DB.queue.push({jobId:"gone1",name:"gone",status:"unavailable",approved:true});
+  await ctx.window.BAG.scanner.scanOnce();
+  eq("job absent from the feed stays unavailable",
+     DB.queue.filter(function(x){return x.jobId==="gone1";})[0].status, "unavailable");
+
+  // a revived job must still satisfy the filter
+  DB.queue.forEach(function(x){ if(x.jobId==="j2"){ x.status="unavailable"; } });
+  DB.config = { searchQuery:"算法", mustInclude:["不可能出现的词"], cities:["上海"] };
+  await ctx.window.BAG.scanner.scanOnce();
+  eq("a job the filter now rejects is not revived",
+     DB.queue.filter(function(x){return x.jobId==="j2";})[0].status, "unavailable");
+
   console.log("\n[8] no legacy field references anywhere");
   ["src/content/panel.js","src/content/executor.js","src/popup/popup.js","src/popup/popup.html","src/lib/filters.js","src/lib/cities.js"].forEach(function(f){
     const t=fs.readFileSync(D+f,"utf8");

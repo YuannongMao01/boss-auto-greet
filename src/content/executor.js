@@ -150,6 +150,18 @@
     return null;
   }
 
+  // Write off queued jobs that the feed no longer shows. Reversible: the scanner puts them back
+  // to pending if the same job reappears on a later load.
+  async function markUnavailable() {
+    const q = await B.store.getQueue();
+    let marked = 0;
+    q.forEach(function (item) {
+      if (item.approved && item.status === "pending") { item.status = "unavailable"; marked++; }
+    });
+    if (marked) await B.store.setQueue(q);
+    return marked;
+  }
+
   async function resumeToSearch() {
     const cfg = await B.store.getConfig();
     if (cfg.searchQuery) location.href = B.cities.buildSearchUrl(cfg);
@@ -193,9 +205,18 @@
       if (found === "stopped") return;
       if (found === "captcha") return handleCaptcha(null);
       if (!found) {
-        const left = (await B.store.getQueue()).filter(function (q) { return q.approved && q.status === "pending"; }).length;
-        await setStatus("已滚到列表底部，仍未找到这 " + left + " 个待办岗位的卡片，可能属于别的搜索词或已下架，已暂停 → 点「清空队列」再「扫描本页」");
-        await setPaused();
+        // Walking the whole feed without a hit means nothing on it is actionable. Rather than
+        // dead-ending, write the unreachable jobs off as unavailable (the scanner revives them if
+        // they show up again) and report the scan numbers so the real cause is visible.
+        const marked = await markUnavailable();
+        const r = await B.scanner.scanOnce();
+        let why = "本页 " + r.total + " 个岗位没有可投的：新增 " + r.added + " · 已在队列 " + r.inQueue +
+                  " · 已招呼过 " + r.greeted + " · 不符筛选 " + r.filtered;
+        if (r.filtered > 0 && r.topReason) why += "（" + r.topReason + " ×" + r.topCount + "）";
+        await setStatus(why + "。队列里 " + marked + " 个岗位在本次搜索中已不存在，标记为「已消失」，之后再刷出来会自动恢复");
+        await B.store.setRunState("idle");
+        chrome.runtime.sendMessage({ type: "queue-updated" });
+        chrome.runtime.sendMessage({ type: "state-updated", state: "idle" });
         return;
       }
       const next = found.job, card = found.card;
@@ -291,5 +312,5 @@
   async function pause() { await B.store.setRunState("paused"); chrome.runtime.sendMessage({ type: "state-updated", state: "paused" }); }
   async function stop() { await B.store.setRunState("idle"); await B.store.setTask({ active: false }); chrome.runtime.sendMessage({ type: "state-updated", state: "idle" }); }
 
-  B.executor = { run: run, pause: pause, stop: stop, step: step, findPendingCard: findPendingCard };
+  B.executor = { run: run, pause: pause, stop: stop, step: step, findPendingCard: findPendingCard, markUnavailable: markUnavailable };
 })();

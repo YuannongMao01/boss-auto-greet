@@ -11,7 +11,7 @@
     return n;
   }
   function stateLabel(s) { return { idle: "空闲", running: "运行中", paused: "已暂停" }[s] || s; }
-  function statusLabel(s) { return { pending: "待处理", greeted: "已招呼", skipped: "跳过", captcha: "验证码", error: "错误" }[s] || s; }
+  function statusLabel(s) { return { pending: "待处理", greeted: "已招呼", skipped: "跳过", unavailable: "已消失", captcha: "验证码", error: "错误" }[s] || s; }
 
   function showMsg(text) {
     if (!root) return;
@@ -212,6 +212,7 @@
       else {
         let m = "本页 " + r.total + " 个卡片：新增 " + r.added + " · 已在队列 " + r.inQueue +
                 " · 已招呼过 " + r.greeted + " · 不符筛选 " + r.filtered;
+        if (r.revived) m += " · 恢复 " + r.revived;
         if (r.filtered > 0 && r.topReason) m += "（主要原因：" + r.topReason + " ×" + r.topCount + "）";
         showMsg(m);
       }

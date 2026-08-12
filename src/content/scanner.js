@@ -11,16 +11,31 @@
     const greeted = await B.store.getGreeted();   // contains only genuinely greeted job ids
     const queue = await B.store.getQueue();
     const existing = new Set(queue.map(function (q) { return q.jobId; }));
+    const byId = {};
+    queue.forEach(function (q) { byId[q.jobId] = q; });
     const cards = B.dom.getAllCards();
     const toAdd = [];
-    let inQueue = 0, greetedSkip = 0, filtered = 0;
+    let inQueue = 0, greetedSkip = 0, filtered = 0, revived = 0;
     const reasonTally = {};   // tally rejection reasons so the panel can explain an empty result
 
     for (let i = 0; i < cards.length; i++) {
       const job = B.dom.parseCard(cards[i]);
       if (!job.jobId) continue;
-      if (existing.has(job.jobId)) { inQueue++; continue; }
       if (greeted.has(job.jobId)) { greetedSkip++; continue; }
+      const known = byId[job.jobId];
+      if (known) {
+        // The feed reshuffles between loads, so a job written off as unavailable can come back.
+        // Put it in play again rather than ignoring it forever.
+        if (known.status === "unavailable" && B.filters.matches(job, config).ok) {
+          known.status = "pending";
+          known.approved = true;
+          revived++;
+        } else {
+          inQueue++;
+        }
+        continue;
+      }
+      if (existing.has(job.jobId)) { inQueue++; continue; }
       const verdict = B.filters.matches(job, config);
       if (!verdict.ok) {
         filtered++;
@@ -36,11 +51,11 @@
       });
     }
 
-    if (toAdd.length) {
+    if (toAdd.length || revived) {
       await B.store.setQueue(queue.concat(toAdd));
       chrome.runtime.sendMessage({ type: "queue-updated" });
       chrome.runtime.sendMessage({ type: "notify", title: "发现新岗位", message: toAdd.length + " 个新岗位进入队列" });
-      B.log("log", "queued new candidates", toAdd.length);
+      B.log("log", "queued new candidates", toAdd.length, "revived", revived);
     }
     // Pick the single most common rejection reason
     let topReason = "", topCount = 0;
@@ -49,7 +64,8 @@
     });
     return {
       total: cards.length, added: toAdd.length, inQueue: inQueue, greeted: greetedSkip,
-      filtered: filtered, topReason: topReason, topCount: topCount, reasons: reasonTally
+      filtered: filtered, revived: revived,
+      topReason: topReason, topCount: topCount, reasons: reasonTally
     };
   }
 

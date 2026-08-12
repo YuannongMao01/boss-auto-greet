@@ -104,6 +104,7 @@
 .bag-greeted { background: #f0faf3; }
 .bag-captcha { background: #fef2f2; }
 .bag-skipped { opacity: .6; }
+.bag-unavailable { opacity: .55; background: #fbfbfa; }
 .bag-error { background: #fff7ed; }
 
 .bag-debugbox { padding: 8px 12px; border-bottom: 1px solid #eef1f5; background: #fafbfc; }
