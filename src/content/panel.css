@@ -16,9 +16,8 @@
   flex-direction: column;
   overflow: hidden;
 }
-.bag-panel.bag-collapsed .bag-primary,
+.bag-panel.bag-collapsed .bag-actions,
 .bag-panel.bag-collapsed .bag-stat,
-.bag-panel.bag-collapsed .bag-more,
 .bag-panel.bag-collapsed .bag-msg,
 .bag-panel.bag-collapsed .bag-debugbox,
 .bag-panel.bag-collapsed .bag-list { display: none; }
@@ -30,31 +29,34 @@
 .bag-title { font-weight: 600; }
 .bag-toggle { cursor: pointer; padding: 0 6px; user-select: none; }
 
-.bag-primary { display: flex; gap: 8px; padding: 12px 12px 8px; }
+/* Three levels of emphasis in one flat stack: primary, secondary pair, quiet debug */
+.bag-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+
 .bag-main {
-  flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer;
+  width: 100%; padding: 11px; border-radius: 8px; cursor: pointer;
   font-size: 14px; font-weight: 600; color: #14532d; background: #e7f5ec;
   border: 1px solid #86c99a;
 }
 .bag-main:hover { background: #daf0e2; }
 .bag-main.bag-running { color: #7a4a00; background: #fff3e0; border-color: #e6be7a; }
-.bag-morebtn {
-  padding: 10px 12px; border: 1px solid #cdd5df; background: #f4f4f2;
-  border-radius: 8px; cursor: pointer; font-size: 12px; color: #4a5568;
-}
-.bag-morebtn:hover { background: #e9edf2; }
 
-.bag-stat { font-size: 12px; color: #4a5568; padding: 0 14px 8px; }
+.bag-secondary { display: flex; gap: 8px; }
+.bag-secondary button {
+  flex: 1; padding: 8px; border: 1px solid #cdd5df; background: #fff;
+  border-radius: 8px; cursor: pointer; font-size: 12.5px; color: #4a5568;
+}
+.bag-secondary button:hover { background: #f0f2f5; }
 
-.bag-more {
-  display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px;
-  border-top: 1px solid #eef1f5; border-bottom: 1px solid #eef1f5; background: #fafbfc;
+.bag-dbgbtn {
+  width: 100%; padding: 6px; border: 1px solid #eef1f5; background: #fafbfc;
+  border-radius: 8px; cursor: pointer; font-size: 11.5px; color: #9aa3b0;
 }
-.bag-more button {
-  flex: 1 0 44%; padding: 6px 8px; border: 1px solid #cdd5df;
-  background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; color: #4a5568;
+.bag-dbgbtn:hover { background: #f0f2f5; color: #4a5568; }
+
+.bag-stat {
+  font-size: 12px; color: #4a5568; padding: 0 14px 10px;
+  border-bottom: 1px solid #eef1f5; margin-bottom: 0;
 }
-.bag-more button:hover { background: #f0f2f5; }
 
 .bag-msg {
   padding: 7px 14px; font-size: 12px; color: #7a4a00; background: #fff7e6;
@@ -67,6 +69,7 @@
   border-bottom: 1px solid #f2f4f7;
 }
 .bag-row input { margin-top: 3px; }
+.bag-info { flex: 1; min-width: 0; }   /* keeps long job titles from overflowing the row */
 .bag-name { font-weight: 600; }
 .bag-sub, .bag-sub2 { color: #6b7280; font-size: 11.5px; margin-top: 1px; }
 .bag-greeted { background: #f0faf3; }

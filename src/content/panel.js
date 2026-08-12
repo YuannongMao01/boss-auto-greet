@@ -1,7 +1,7 @@
 // Injected sidebar panel: one primary start/pause control, a collapsed advanced menu, and the queue.
 (function () {
   const B = window.BAG;
-  const BAG_VERSION = "v14";  // Bumped on every change, so the panel title proves which build is loaded
+  const BAG_VERSION = "v1";  // Shown in the panel title so you can confirm which build the tab loaded
   let root = null;
 
   function el(tag, cls, txt) {
@@ -95,27 +95,13 @@
     head.appendChild(toggle);
     root.appendChild(head);
 
-    // Primary control row
-    const primary = el("div", "bag-primary");
+    // Action stack, flat and always visible: primary control, the two queue actions, then debug
+    const actions = el("div", "bag-actions");
     const main = el("button", "bag-main", "开始打招呼");
     main.onclick = onMain;
-    const more = el("button", "bag-morebtn", "更多 ▾");
-    more.onclick = function () {
-      const box = root.querySelector(".bag-more");
-      const open = box.style.display !== "none";
-      box.style.display = open ? "none" : "flex";
-      more.textContent = open ? "更多 ▾" : "收起 ▴";
-    };
-    primary.appendChild(main);
-    primary.appendChild(more);
-    root.appendChild(primary);
+    actions.appendChild(main);
 
-    // Status row
-    root.appendChild(el("div", "bag-stat"));
-
-    // Collapsed advanced actions
-    const moreBox = el("div", "bag-more");
-    moreBox.style.display = "none";
+    const secondary = el("div", "bag-secondary");
     const rescan = el("button", null, "扫描本页");
     rescan.onclick = async function () {
       const r = await B.scanner.scanOnce();
@@ -181,8 +167,14 @@
       box.appendChild(copyBtn);
       debug.textContent = "关闭调试";
     };
-    [rescan, clear, debug].forEach(function (b) { moreBox.appendChild(b); });
-    root.appendChild(moreBox);
+    secondary.appendChild(rescan);
+    secondary.appendChild(clear);
+    actions.appendChild(secondary);
+    actions.appendChild(debug);
+    root.appendChild(actions);
+
+    // Status row
+    root.appendChild(el("div", "bag-stat"));
 
     const msg = el("div", "bag-msg");
     msg.style.display = "none";

@@ -142,7 +142,7 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
     ok(f+" clean of cfg.keywords/matchMode", !/cfg\.keywords|config\.keywords|matchMode|id="keywords"/.test(t));
   });
   const pan=fs.readFileSync(D+"src/content/panel.js","utf8");
-  ok("panel version bumped to v14", /BAG_VERSION = "v14"/.test(pan));
+  ok("panel version is v1", /BAG_VERSION = "v1"/.test(pan));
   ok("panel shows top reason", pan.indexOf("主要原因")>0);
 
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
