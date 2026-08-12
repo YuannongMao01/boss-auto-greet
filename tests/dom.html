@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Boss Auto Greet - DOM tests</title>
+<!-- Panel DOM tests. Open this file directly in a browser, or run headless:
+     chrome --headless=new --virtual-time-budget=6000 --dump-dom tests/dom.html
+     It loads the real content scripts and drives them with synthetic mouse events. -->
+<style>body{margin:0;height:1400px;background:#eceef1;font-family:-apple-system,"PingFang SC",sans-serif}</style>
+<link rel="stylesheet" href="../src/content/panel.css">
+<script>
+// Minimal chrome.* stub, enough for store.js and panel.js
+var __DB = {};
+window.chrome = {
+  storage: {
+    local: {
+      get: function (k, cb) {
+        var out = {}, ks = typeof k === "string" ? [k] : (Array.isArray(k) ? k : Object.keys(k || {}));
+        ks.forEach(function (x) { if (x in __DB) out[x] = __DB[x]; });
+        setTimeout(function () { cb(out); }, 0);
+      },
+      set: function (o, cb) { Object.assign(__DB, o); if (cb) setTimeout(cb, 0); },
+      remove: function (k, cb) { (Array.isArray(k) ? k : [k]).forEach(function (x) { delete __DB[x]; }); if (cb) setTimeout(cb, 0); }
+    },
+    onChanged: { addListener: function () {} }
+  },
+  runtime: { onMessage: { addListener: function () {} }, sendMessage: function () {}, getURL: function (p) { return p; } },
+  notifications: { create: function () {} },
+  alarms: { create: function () {}, onAlarm: { addListener: function () {} } }
+};
+</script>
+</head>
+<body>
+<pre id="out" style="position:fixed;left:12px;bottom:12px;font:12px monospace;color:#111;background:#fff;padding:8px;border:1px solid #ccc;max-width:660px;white-space:pre-wrap"></pre>
+
+<script src="../src/lib/logger.js"></script>
+<script src="../src/lib/humanize.js"></script>
+<script src="../src/lib/store.js"></script>
+<script src="../src/lib/selectors.js"></script>
+<script src="../src/lib/cities.js"></script>
+<script src="../src/lib/filters.js"></script>
+<script src="../src/content/scanner.js"></script>
+<script src="../src/content/executor.js"></script>
+<script src="../src/content/panel.js"></script>
+
+<script>
+var L = [], P = 0, F = 0;
+function ok(n, c, extra) {
+  if (c) { P++; L.push("PASS  " + n); }
+  else { F++; L.push("FAIL  " + n + (extra !== undefined ? "  got=" + JSON.stringify(extra) : "")); }
+}
+function mouse(t, el, x, y) {
+  el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, view: window }));
+}
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+(async function () {
+  await sleep(600);   // let init() -> build() -> restoreLayout() settle
+  var root = document.querySelector(".bag-panel");
+  ok("panel injected", !!root);
+  if (!root) { document.getElementById("out").textContent = L.join("\n"); return; }
+
+  var head = root.querySelector(".bag-head");
+  var msg = root.querySelector(".bag-msg");
+  var tog = root.querySelector(".bag-toggle");
+  var acts = root.querySelector(".bag-actions");
+  var sec = root.querySelector(".bag-secondary");
+
+  // A. Flat action stack, no collapse-into-more layer
+  ok("no more button or more box", !root.querySelector(".bag-morebtn") && !root.querySelector(".bag-more"));
+  ok("actions container exists", !!acts);
+  ok("two secondary buttons side by side", sec && sec.children.length === 2, sec ? sec.children.length : null);
+  ok("secondary order is scan then clear",
+     sec.children[0].textContent === "扫描本页" && sec.children[1].textContent === "清空队列",
+     [sec.children[0].textContent, sec.children[1].textContent]);
+  ok("stack order is main, secondary, debug",
+     acts.children[0].className.indexOf("bag-main") >= 0 &&
+     acts.children[1].className === "bag-secondary" &&
+     acts.children[2].className === "bag-dbgbtn",
+     [acts.children[0].className, acts.children[1].className, acts.children[2].className]);
+  ok("title carries the version", root.querySelector(".bag-title").textContent.indexOf("v1") >= 0,
+     root.querySelector(".bag-title").textContent);
+  ok("header advertises dragging", getComputedStyle(head).cursor === "move", getComputedStyle(head).cursor);
+
+  // B. Collapsing must beat the inline display set by showMsg()
+  msg.textContent = "本页 15 个卡片：新增 15 · 已在队列 0 · 已招呼过 0 · 不符筛选 0";
+  msg.style.display = "block";
+  ok("message visible before collapsing", getComputedStyle(msg).display === "block");
+  tog.click();
+  await sleep(60);
+  ok("panel collapsed", root.classList.contains("bag-collapsed"));
+  ok("message hidden while collapsed despite inline display block",
+     getComputedStyle(msg).display === "none", getComputedStyle(msg).display);
+  ok("actions hidden while collapsed", getComputedStyle(acts).display === "none");
+  ok("toggle glyph switches to plus", tog.textContent === "+", tog.textContent);
+  ok("collapsed state persisted", __DB.panelCollapsed === true, __DB.panelCollapsed);
+  tog.click();
+  await sleep(60);
+  ok("expanding restores the message", getComputedStyle(msg).display === "block", getComputedStyle(msg).display);
+  ok("toggle glyph returns to dash", tog.textContent === "—", tog.textContent);
+
+  // C. Dragging by the header
+  var before = root.getBoundingClientRect();
+  mouse("mousedown", head, before.left + 40, before.top + 12);
+  mouse("mousemove", document, before.left + 40 - 260, before.top + 12 + 150);
+  mouse("mouseup", document, before.left + 40 - 260, before.top + 12 + 150);
+  await sleep(120);
+  var after = root.getBoundingClientRect();
+  ok("moved left by about 260px", Math.abs((before.left - after.left) - 260) < 3, before.left - after.left);
+  ok("moved down by about 150px", Math.abs((after.top - before.top) - 150) < 3, after.top - before.top);
+  ok("right anchor released", root.style.right === "auto", root.style.right);
+  ok("position persisted", !!__DB.panelPos, __DB.panelPos);
+
+  // D. Clamping keeps the panel on screen
+  var r2 = root.getBoundingClientRect();
+  mouse("mousedown", head, r2.left + 40, r2.top + 12);
+  mouse("mousemove", document, r2.left + 40 - 9000, r2.top + 12 - 9000);
+  mouse("mouseup", document, r2.left + 40 - 9000, r2.top + 12 - 9000);
+  await sleep(120);
+  var r3 = root.getBoundingClientRect();
+  ok("clamped at the left edge", r3.left >= 0 && r3.left <= 4, r3.left);
+  ok("clamped at the top edge", r3.top >= 0 && r3.top <= 4, r3.top);
+  mouse("mousedown", head, r3.left + 40, r3.top + 12);
+  mouse("mousemove", document, r3.left + 40 + 9000, r3.top + 12 + 9000);
+  mouse("mouseup", document, r3.left + 40 + 9000, r3.top + 12 + 9000);
+  await sleep(120);
+  var r4 = root.getBoundingClientRect();
+  ok("clamped inside the right edge", r4.right <= window.innerWidth, [r4.right, window.innerWidth]);
+  ok("header stays reachable at the bottom", r4.top <= window.innerHeight - 40, [r4.top, window.innerHeight]);
+
+  // E. Clicking the toggle must not turn into a drag
+  var r5 = root.getBoundingClientRect();
+  mouse("mousedown", tog, r5.right - 20, r5.top + 12);
+  mouse("mousemove", document, r5.right - 20 - 100, r5.top + 12);
+  mouse("mouseup", document, r5.right - 20 - 100, r5.top + 12);
+  await sleep(80);
+  ok("toggle mousedown does not start a drag",
+     Math.abs(root.getBoundingClientRect().left - r5.left) < 2,
+     root.getBoundingClientRect().left - r5.left);
+
+  L.push(F ? ("###### " + F + " FAILED, " + P + " passed ######")
+           : ("###### ALL " + P + " DOM TESTS PASSED ######"));
+  document.getElementById("out").textContent = L.join("\n");
+})();
+</script>
+</body>
+</html>

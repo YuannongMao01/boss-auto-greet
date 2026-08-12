@@ -84,6 +84,61 @@
     render();
   }
 
+  // Keep the panel inside the viewport, leaving the header reachable at the bottom edge
+  function clampPos(x, y, w) {
+    const maxX = Math.max(0, window.innerWidth - w - 4);
+    const maxY = Math.max(0, window.innerHeight - 40);
+    return { x: Math.min(Math.max(0, x), maxX), y: Math.min(Math.max(0, y), maxY) };
+  }
+
+  // Drag by the header. Listeners are registered in the capture phase so the host page's own
+  // handlers cannot swallow the gesture.
+  function enableDrag(handle) {
+    let startX = 0, startY = 0, originX = 0, originY = 0, dragging = false;
+    handle.addEventListener("mousedown", function (e) {
+      if (e.button !== 0) return;
+      if (e.target.classList.contains("bag-toggle")) return;   // leave the collapse control clickable
+      const r = root.getBoundingClientRect();
+      dragging = true;
+      startX = e.clientX; startY = e.clientY; originX = r.left; originY = r.top;
+      root.style.left = r.left + "px";
+      root.style.top = r.top + "px";
+      root.style.right = "auto";
+      root.classList.add("bag-dragging");
+      e.preventDefault(); e.stopPropagation();
+    }, true);
+    document.addEventListener("mousemove", function (e) {
+      if (!dragging) return;
+      const c = clampPos(originX + e.clientX - startX, originY + e.clientY - startY, root.offsetWidth);
+      root.style.left = c.x + "px";
+      root.style.top = c.y + "px";
+      e.preventDefault();
+    }, true);
+    document.addEventListener("mouseup", function () {
+      if (!dragging) return;
+      dragging = false;
+      root.classList.remove("bag-dragging");
+      const r = root.getBoundingClientRect();
+      B.store.set({ panelPos: { x: r.left, y: r.top } });
+    }, true);
+  }
+
+  // Restore the position and collapsed state saved before the last navigation
+  async function restoreLayout() {
+    const o = await B.store.get(["panelPos", "panelCollapsed"]);
+    if (o.panelPos) {
+      const c = clampPos(o.panelPos.x, o.panelPos.y, root.offsetWidth);
+      root.style.left = c.x + "px";
+      root.style.top = c.y + "px";
+      root.style.right = "auto";
+    }
+    if (o.panelCollapsed) {
+      root.classList.add("bag-collapsed");
+      const t = root.querySelector(".bag-toggle");
+      if (t) t.textContent = "+";
+    }
+  }
+
   function build() {
     root = el("div", "bag-panel");
 
@@ -91,9 +146,14 @@
     head.appendChild(el("span", "bag-title", "Boss Auto Greet · " + BAG_VERSION));
     const toggle = el("span", "bag-toggle", "—");
     toggle.title = "折叠/展开";
-    toggle.onclick = function () { root.classList.toggle("bag-collapsed"); };
+    toggle.onclick = function () {
+      const collapsed = root.classList.toggle("bag-collapsed");
+      toggle.textContent = collapsed ? "+" : "—";
+      B.store.set({ panelCollapsed: collapsed });
+    };
     head.appendChild(toggle);
     root.appendChild(head);
+    enableDrag(head);
 
     // Action stack, flat and always visible: primary control, the two queue actions, then debug
     const actions = el("div", "bag-actions");
@@ -215,6 +275,7 @@
   async function init() {
     if (await maybeAutoNavigate()) return;
     build();
+    await restoreLayout();
     render();
     B.scanner.startObserving();
     B.log("log", "panel injected, URL:", location.href);

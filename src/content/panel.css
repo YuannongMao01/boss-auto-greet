@@ -16,18 +16,27 @@
   flex-direction: column;
   overflow: hidden;
 }
+/* !important is required: showMsg() and the debug box set display via inline styles,
+   which would otherwise outrank this rule and stay visible while collapsed. */
 .bag-panel.bag-collapsed .bag-actions,
 .bag-panel.bag-collapsed .bag-stat,
 .bag-panel.bag-collapsed .bag-msg,
 .bag-panel.bag-collapsed .bag-debugbox,
-.bag-panel.bag-collapsed .bag-list { display: none; }
+.bag-panel.bag-collapsed .bag-list { display: none !important; }
+.bag-panel.bag-collapsed { max-height: none; }
+.bag-panel.bag-dragging { box-shadow: 0 14px 40px rgba(20, 30, 50, 0.28); }
 
 .bag-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px; background: #1a2744; color: #fff;
+  cursor: move; user-select: none;
 }
-.bag-title { font-weight: 600; }
-.bag-toggle { cursor: pointer; padding: 0 6px; user-select: none; }
+.bag-title { font-weight: 600; pointer-events: none; }
+.bag-toggle {
+  cursor: pointer; padding: 0 8px; user-select: none; line-height: 1;
+  border-radius: 4px; font-size: 15px;
+}
+.bag-toggle:hover { background: rgba(255, 255, 255, 0.16); }
 
 /* Three levels of emphasis in one flat stack: primary, secondary pair, quiet debug */
 .bag-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
