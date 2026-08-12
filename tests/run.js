@@ -159,6 +159,14 @@ console.log("\n[5] store.getConfig legacy migration (keywords -> searchQuery + m
   const ids=[...pjs.matchAll(/getElementById\("([^"]+)"\)/g)].map(function(m){return m[1];});
   const missing=[...new Set(ids)].filter(function(id){ return ph.indexOf('id="'+id+'"')===-1; });
   ok("every id popup.js touches exists in popup.html", missing.length===0, missing);
+  const NAME="Boss Auto Greet";
+  [["manifest.json",/"name":\s*"([^"]+)"/],["src/popup/popup.html",/<h1>([^<]+)<\/h1>/]].forEach(function(pair){
+    const t=fs.readFileSync(D+pair[0],"utf8"), m=t.match(pair[1]);
+    ok(pair[0]+" carries the product name", !!m && m[1].indexOf(NAME)===0, m?m[1]:null);
+  });
+  ["src/content/panel.js","src/background.js","src/popup/popup.html","manifest.json"].forEach(function(f){
+    ok(f+" free of the old product name", fs.readFileSync(D+f,"utf8").indexOf("Boss 招呼助手")===-1);
+  });
 
   console.log("\n" + (fail? "###### "+fail+" FAILED, "+pass+" passed ######" : "###### ALL "+pass+" TESTS PASSED ######"));
   process.exit(fail?1:0);
